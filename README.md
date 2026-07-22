@@ -1,101 +1,94 @@
-# AI Governance Command Center — Moveworks Hackathon V4
+# AI Governance Command Center — Moveworks Hackathon V5
 
-Azure App Service–ready management dashboard that keeps the original UI but replaces mock logic with a live integration layer for Moveworks Agent Studio.
+Azure App Service–ready management dashboard that preserves the existing UI and uses Moveworks Agent Studio as the orchestration layer.
 
-## Runtime
-- Node.js 20+ (Linux App Service)
-- No npm dependencies
-- Startup command: `npm start`
-- Health endpoint: `/health`
+## What V5 fixes
 
-## Live integration model
-The browser never stores ServiceNow, Azure DevOps, or Moveworks credentials. The App Service backend proxies requests to Moveworks, and Moveworks remains the orchestration/AI layer.
+- Uses `MOVEWORKS_TRIGGER_URL` automatically when `MOVEWORKS_AI_URL` is not configured.
+- Sends webhook fields at the top level so a Moveworks System Plugin can map `user_email: parsed_body.user_email`.
+- Uses the App Service backend to keep the Moveworks API key out of browser JavaScript.
+- Recognizes a configured Moveworks webhook as a valid integration instead of showing `MOVEWORKS_AI_URL is not configured`.
+- Shows an accurate "webhook connected / live KPI return not configured" state when only the asynchronous listener is available.
+- Keeps the existing Moveworks Hackathon dashboard design.
 
-### Required App Service environment variables
-For the secured listener you just created:
-- `MOVEWORKS_TRIGGER_URL` — your Moveworks Listener webhook URL
-- `MOVEWORKS_API_KEY` — Moveworks API key secret; backend sends it as `Authorization: Bearer <key>`
-- `DEFAULT_NOTIFICATION_EMAIL` — optional default recipient for demo runs
+## Required App Service environment variables
 
-The dashboard now includes **Test Moveworks Connection**, which calls `/api/moveworks/test` from the browser through the App Service backend. The API key never reaches browser JavaScript.
+For the secured listener:
 
-### Optional synchronous data/AI endpoints
-Use **one** dashboard aggregation endpoint:
-- `MOVEWORKS_DASHBOARD_URL` — GET endpoint returning ageing/SLA/DevOps/effectiveness snapshot
+- `MOVEWORKS_TRIGGER_URL` — published Moveworks Listener webhook URL.
+- `MOVEWORKS_API_KEY` — API key secret. The backend sends it as `Authorization: Bearer <key>`.
+- `DEFAULT_NOTIFICATION_EMAIL` — recommended for the hackathon so the System Plugin always receives `user_email`.
 
-Or use split read-only endpoints:
-- `MOVEWORKS_AGEING_URL`
-- `MOVEWORKS_SLA_URL`
-- `MOVEWORKS_DEVOPS_URL` (optional until DevOps governance is ready)
+## Current real execution path
 
-For AI prompt integration:
-- `MOVEWORKS_AI_URL` — POST endpoint accepting `{ "prompt": "...", "user_email": "...", "context": "dashboard" }`
+Dashboard → Azure App Service backend → secured Moveworks Listener → System Plugin → `sla_governance` → ServiceNow / notification.
 
-Optional action endpoints:
-- `MOVEWORKS_ASSIGN_URL` — POST ticket assignment action
-- `MOVEWORKS_NOTIFY_URL` — POST owner notification action
-- `MOVEWORKS_EOD_URL` — POST EOD report action
-
-Authentication, depending on your Moveworks tenant/API gateway:
-- `MOVEWORKS_AUTH_TOKEN` — sent as `Authorization: Bearer ...`
-- `MOVEWORKS_API_KEY` — sent as `X-API-Key`
-- `MOVEWORKS_TENANT_ID` — optional tenant header
-- `DEFAULT_NOTIFICATION_EMAIL` — optional default user email
-
-## Expected dashboard response
-The backend accepts multiple common shapes. A recommended payload is:
+The browser sends an AI/governance request to `/api/ai/query`. If `MOVEWORKS_AI_URL` is absent, V5 sends the request to `MOVEWORKS_TRIGGER_URL` with this webhook body:
 
 ```json
 {
-  "ageing": {
-    "incident_count": 12,
-    "ritm_count": 7,
-    "task_count": 9,
-    "total_ageing_count": 28,
-    "tickets": []
-  },
-  "sla": {
-    "at_risk_count": 8,
-    "critical_count": 3,
-    "breached_count": 5,
-    "compliance": 93.4,
-    "breaches": []
-  },
-  "daily": {
-    "morning": 28,
-    "updated": 14,
-    "closed": 6,
-    "pending": 8
-  },
-  "devops": {
-    "hygiene": 83,
-    "non_compliant": 18,
-    "largest_gap": "Acceptance Criteria",
-    "items": []
-  },
-  "trend": [65, 72, 78, 82, 80]
+  "event_type": "ticket_governance.ai_prompt",
+  "prompt": "Why are our SLAs breaching?",
+  "user_email": "demo.user@example.com",
+  "context": "dashboard",
+  "source": "azure_app_service_dashboard"
 }
 ```
 
-## Dashboard API routes
-- `POST /api/moveworks/test` — real browser → App Service → secured Moveworks Listener connectivity test
-- `GET /api/dashboard` — live Moveworks governance snapshot
-- `POST /api/ai/query` — real Moveworks AI prompt
-- `POST /api/tickets/:id/assign` — assignment through Moveworks
-- `POST /api/tickets/:id/notify` — notification through Moveworks
-- `POST /api/reports/eod` — EOD reporting through Moveworks
+In the Moveworks System Plugin, map the SLA Governance input as:
+
+```yaml
+user_email: parsed_body.user_email
+```
+
+## Important asynchronous-listener behavior
+
+A webhook listener accepts/triggers the workflow but does not synchronously return the final AI analysis or KPI data to the browser. Therefore:
+
+- `MOVEWORKS_TRIGGER_URL` is sufficient to trigger real governance execution from the web app.
+- To populate live KPI cards, configure a synchronous read/aggregation endpoint using `MOVEWORKS_DASHBOARD_URL` (or split ageing/SLA endpoints).
+- To display the final AI-generated answer immediately in the web dashboard, configure `MOVEWORKS_AI_URL` to a synchronous Moveworks conversation/AI endpoint.
+
+V5 never invents KPI data while those synchronous return paths are unavailable.
+
+## Optional endpoints
+
+- `MOVEWORKS_DASHBOARD_URL` — synchronous GET governance snapshot.
+- `MOVEWORKS_AGEING_URL` — synchronous ageing data endpoint.
+- `MOVEWORKS_SLA_URL` — synchronous SLA data endpoint.
+- `MOVEWORKS_DEVOPS_URL` — synchronous DevOps governance endpoint.
+- `MOVEWORKS_AI_URL` — synchronous AI endpoint for immediate dashboard answers.
+- `MOVEWORKS_ASSIGN_URL` — ticket assignment action.
+- `MOVEWORKS_NOTIFY_URL` — ticket notification action.
+- `MOVEWORKS_EOD_URL` — EOD report action.
+
+## Routes
+
 - `GET /health`
+- `GET /api/config`
+- `GET /api/dashboard`
+- `POST /api/moveworks/test`
+- `POST /api/ai/query`
+- `POST /api/tickets/:id/assign`
+- `POST /api/tickets/:id/notify`
+- `POST /api/reports/eod`
 
-## Azure App Service deployment
-1. Create Linux Web App with Node.js 20+.
-2. Deploy the contents of this ZIP.
-3. Set startup command to `npm start` if your deployment flow does not honor `package.json` automatically.
-4. Add the Moveworks environment variables under **Settings → Environment variables**.
-5. Configure Health Check path as `/health`.
+## Deployment
 
-## Important
-The code and HTTP contract are tested locally against a mock Moveworks service. Live tenant execution still requires the actual Moveworks API/listener URLs and approved authentication values from your environment. Do not place ServiceNow or Azure DevOps credentials in browser JavaScript.
+1. Deploy the contents of this package to Azure App Service.
+2. Use Node.js 20+.
+3. Startup command: `npm start`.
+4. Set `MOVEWORKS_TRIGGER_URL`, `MOVEWORKS_API_KEY`, and `DEFAULT_NOTIFICATION_EMAIL` under App Service → Environment variables.
+5. Save settings and restart App Service.
+6. Hard refresh the browser (`Ctrl+F5`).
+7. Verify `/health` returns version `5.0.0`.
 
+## Tests
 
-## Listener vs synchronous AI
-A webhook listener returns an event receipt (`RECEIVED`) and is asynchronous. V4 can use it to trigger the governance workflow from the existing Ask AI box. To display the actual generated AI answer immediately in the dashboard, configure `MOVEWORKS_AI_URL` to a synchronous Moveworks Conversations API integration (or equivalent).
+Run:
+
+```bash
+npm test
+```
+
+The tests verify App Service startup, trigger-only state, secured webhook proxying, top-level `user_email`/`prompt` payload mapping, AI webhook fallback, assignment/notification/EOD proxy routes, and Moveworks Hackathon branding.

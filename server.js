@@ -175,7 +175,25 @@ async function buildDashboard() {
 
   // Optional split endpoints: useful when Moveworks exposes ageing/SLA/DevOps as separate published APIs.
   const configured = [process.env.MOVEWORKS_AGEING_URL, process.env.MOVEWORKS_SLA_URL, process.env.MOVEWORKS_DEVOPS_URL].some(Boolean);
-  if (!configured) throw new Error('No dashboard Moveworks endpoint configured');
+  if (!configured) {
+    if (process.env.MOVEWORKS_TRIGGER_URL) {
+      return {
+        source: 'moveworks-trigger',
+        mode: 'trigger-only',
+        generatedAt: new Date().toISOString(),
+        message: 'Moveworks webhook trigger is connected. Live KPI return endpoint is not configured yet.',
+        ageing: { incidentCount: 0, ritmCount: 0, taskCount: 0, total: 0 },
+        sla: { atRisk: 0, critical: 0, breached: 0, compliance: null },
+        daily: { morning: 0, updated: 0, closed: 0, pending: 0, actionRate: null, backlogReduction: null },
+        tickets: [],
+        slaBreaches: [],
+        devops: { hygiene: 0, nonCompliant: 0, largestGap: '', items: [] },
+        aiBriefing: null,
+        trend: []
+      };
+    }
+    throw new Error('No Moveworks integration endpoint configured');
+  }
 
   const [ageing, sla, devops] = await Promise.all([
     process.env.MOVEWORKS_AGEING_URL ? callMoveworks(process.env.MOVEWORKS_AGEING_URL) : {},
@@ -197,8 +215,8 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 200, {
       status: 'ok',
       service: 'ai-governance-command-center',
-      version: '4.0.0',
-      moveworksConfigured: Boolean(process.env.MOVEWORKS_DASHBOARD_URL || process.env.MOVEWORKS_AGEING_URL || process.env.MOVEWORKS_SLA_URL),
+      version: '5.0.0',
+      moveworksConfigured: Boolean(process.env.MOVEWORKS_DASHBOARD_URL || process.env.MOVEWORKS_AGEING_URL || process.env.MOVEWORKS_SLA_URL || process.env.MOVEWORKS_TRIGGER_URL),
       aiConfigured: Boolean(process.env.MOVEWORKS_AI_URL || process.env.MOVEWORKS_TRIGGER_URL),
       triggerConfigured: Boolean(process.env.MOVEWORKS_TRIGGER_URL)
     });
@@ -211,7 +229,7 @@ const server = http.createServer(async (req, res) => {
         eventName: 'Moveworks Hackathon',
         refreshSeconds: 300,
         integrations: {
-          dashboard: Boolean(process.env.MOVEWORKS_DASHBOARD_URL || process.env.MOVEWORKS_AGEING_URL || process.env.MOVEWORKS_SLA_URL),
+          dashboard: Boolean(process.env.MOVEWORKS_DASHBOARD_URL || process.env.MOVEWORKS_AGEING_URL || process.env.MOVEWORKS_SLA_URL || process.env.MOVEWORKS_TRIGGER_URL),
           ai: Boolean(process.env.MOVEWORKS_AI_URL || process.env.MOVEWORKS_TRIGGER_URL),
           trigger: Boolean(process.env.MOVEWORKS_TRIGGER_URL),
           assign: Boolean(process.env.MOVEWORKS_ASSIGN_URL),
@@ -234,12 +252,10 @@ const server = http.createServer(async (req, res) => {
         method: 'POST',
         body: {
           event_type: 'ticket_governance.dashboard_test',
-          data: {
-            prompt: body.prompt || 'Run AI Ticket Governance',
-            user_email: body.user_email || process.env.DEFAULT_NOTIFICATION_EMAIL || undefined,
-            source: 'azure_app_service_dashboard',
-            requested_at: new Date().toISOString()
-          }
+          prompt: body.prompt || 'Run AI Ticket Governance',
+          user_email: body.user_email || process.env.DEFAULT_NOTIFICATION_EMAIL || undefined,
+          source: 'azure_app_service_dashboard',
+          requested_at: new Date().toISOString()
         }
       });
       return sendJson(res, 200, { success: true, moveworks: payload });
@@ -261,11 +277,15 @@ const server = http.createServer(async (req, res) => {
         method: 'POST',
         body: {
           event_type: 'ticket_governance.ai_prompt',
-          data: { prompt, user_email: body.user_email || process.env.DEFAULT_NOTIFICATION_EMAIL || undefined, context: body.context || 'dashboard', source: 'azure_app_service_dashboard' }
+          prompt,
+          user_email: body.user_email || process.env.DEFAULT_NOTIFICATION_EMAIL || undefined,
+          context: body.context || 'dashboard',
+          source: 'azure_app_service_dashboard',
+          requested_at: new Date().toISOString()
         }
       });
       return sendJson(res, 202, {
-        answer: 'Moveworks accepted the AI governance request. The listener is event-based, so the workflow will continue in Moveworks. For an immediate AI answer inside this dashboard, configure MOVEWORKS_AI_URL with the Moveworks Conversations API or another synchronous AI endpoint.',
+        answer: 'Moveworks accepted the governance request and started the published webhook workflow. The current listener is asynchronous, so the execution continues in Moveworks. Live KPI return and an immediate AI answer in this panel require a synchronous Moveworks response endpoint.',
         mode: 'webhook-trigger',
         moveworks: payload
       });
