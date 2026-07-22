@@ -1,0 +1,11 @@
+{
+  "name": "ai-governance-command-center-appservice",
+  "private": true,
+  "version": "2.0.0",
+  "description": "Hackathon-ready AI Operations Governance Command Center for Azure App Service",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "start": "node server.js",
+    "test": "node tests/smoke-test.js"
+  }
+}
