@@ -64,7 +64,7 @@ async function readJsonBody(req) {
 function upstreamHeaders() {
   const headers = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
   if (process.env.MOVEWORKS_AUTH_TOKEN) headers.Authorization = `Bearer ${process.env.MOVEWORKS_AUTH_TOKEN}`;
-  if (process.env.MOVEWORKS_API_KEY) headers['X-API-Key'] = process.env.MOVEWORKS_API_KEY;
+  else if (process.env.MOVEWORKS_API_KEY) headers.Authorization = `Bearer ${process.env.MOVEWORKS_API_KEY}`;
   if (process.env.MOVEWORKS_TENANT_ID) headers['X-Moveworks-Tenant-Id'] = process.env.MOVEWORKS_TENANT_ID;
   return headers;
 }
@@ -197,9 +197,10 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 200, {
       status: 'ok',
       service: 'ai-governance-command-center',
-      version: '3.0.0',
+      version: '4.0.0',
       moveworksConfigured: Boolean(process.env.MOVEWORKS_DASHBOARD_URL || process.env.MOVEWORKS_AGEING_URL || process.env.MOVEWORKS_SLA_URL),
-      aiConfigured: Boolean(process.env.MOVEWORKS_AI_URL)
+      aiConfigured: Boolean(process.env.MOVEWORKS_AI_URL || process.env.MOVEWORKS_TRIGGER_URL),
+      triggerConfigured: Boolean(process.env.MOVEWORKS_TRIGGER_URL)
     });
   }
 
@@ -211,7 +212,8 @@ const server = http.createServer(async (req, res) => {
         refreshSeconds: 300,
         integrations: {
           dashboard: Boolean(process.env.MOVEWORKS_DASHBOARD_URL || process.env.MOVEWORKS_AGEING_URL || process.env.MOVEWORKS_SLA_URL),
-          ai: Boolean(process.env.MOVEWORKS_AI_URL),
+          ai: Boolean(process.env.MOVEWORKS_AI_URL || process.env.MOVEWORKS_TRIGGER_URL),
+          trigger: Boolean(process.env.MOVEWORKS_TRIGGER_URL),
           assign: Boolean(process.env.MOVEWORKS_ASSIGN_URL),
           notify: Boolean(process.env.MOVEWORKS_NOTIFY_URL),
           eod: Boolean(process.env.MOVEWORKS_EOD_URL)
@@ -224,16 +226,49 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, dashboard);
     }
 
+
+    if (url.pathname === '/api/moveworks/test' && req.method === 'POST') {
+      if (!process.env.MOVEWORKS_TRIGGER_URL) return sendJson(res, 503, { error: 'MOVEWORKS_TRIGGER_URL is not configured' });
+      const body = await readJsonBody(req);
+      const payload = await callMoveworks(process.env.MOVEWORKS_TRIGGER_URL, {
+        method: 'POST',
+        body: {
+          event_type: 'ticket_governance.dashboard_test',
+          data: {
+            prompt: body.prompt || 'Run AI Ticket Governance',
+            user_email: body.user_email || process.env.DEFAULT_NOTIFICATION_EMAIL || undefined,
+            source: 'azure_app_service_dashboard',
+            requested_at: new Date().toISOString()
+          }
+        }
+      });
+      return sendJson(res, 200, { success: true, moveworks: payload });
+    }
+
     if (url.pathname === '/api/ai/query' && req.method === 'POST') {
       const body = await readJsonBody(req);
       const prompt = String(body.prompt || '').trim();
       if (!prompt) return sendJson(res, 400, { error: 'prompt is required' });
-      if (!process.env.MOVEWORKS_AI_URL) return sendJson(res, 503, { error: 'MOVEWORKS_AI_URL is not configured' });
-      const payload = await callMoveworks(process.env.MOVEWORKS_AI_URL, {
+      if (process.env.MOVEWORKS_AI_URL) {
+        const payload = await callMoveworks(process.env.MOVEWORKS_AI_URL, {
+          method: 'POST',
+          body: { prompt, user_email: body.user_email || process.env.DEFAULT_NOTIFICATION_EMAIL || undefined, context: body.context || 'dashboard' }
+        });
+        return sendJson(res, 200, { answer: pickAiAnswer(payload), mode: 'synchronous-ai', raw: process.env.EXPOSE_UPSTREAM_RAW === 'true' ? payload : undefined });
+      }
+      if (!process.env.MOVEWORKS_TRIGGER_URL) return sendJson(res, 503, { error: 'MOVEWORKS_AI_URL or MOVEWORKS_TRIGGER_URL is not configured' });
+      const payload = await callMoveworks(process.env.MOVEWORKS_TRIGGER_URL, {
         method: 'POST',
-        body: { prompt, user_email: body.user_email || process.env.DEFAULT_NOTIFICATION_EMAIL || undefined, context: body.context || 'dashboard' }
+        body: {
+          event_type: 'ticket_governance.ai_prompt',
+          data: { prompt, user_email: body.user_email || process.env.DEFAULT_NOTIFICATION_EMAIL || undefined, context: body.context || 'dashboard', source: 'azure_app_service_dashboard' }
+        }
       });
-      return sendJson(res, 200, { answer: pickAiAnswer(payload), raw: process.env.EXPOSE_UPSTREAM_RAW === 'true' ? payload : undefined });
+      return sendJson(res, 202, {
+        answer: 'Moveworks accepted the AI governance request. The listener is event-based, so the workflow will continue in Moveworks. For an immediate AI answer inside this dashboard, configure MOVEWORKS_AI_URL with the Moveworks Conversations API or another synchronous AI endpoint.',
+        mode: 'webhook-trigger',
+        moveworks: payload
+      });
     }
 
     const assignMatch = url.pathname.match(/^\/api\/tickets\/([^/]+)\/assign$/);

@@ -1,4 +1,4 @@
-# AI Governance Command Center — Moveworks Hackathon
+# AI Governance Command Center — Moveworks Hackathon V4
 
 Azure App Service–ready management dashboard that keeps the original UI but replaces mock logic with a live integration layer for Moveworks Agent Studio.
 
@@ -12,6 +12,14 @@ Azure App Service–ready management dashboard that keeps the original UI but re
 The browser never stores ServiceNow, Azure DevOps, or Moveworks credentials. The App Service backend proxies requests to Moveworks, and Moveworks remains the orchestration/AI layer.
 
 ### Required App Service environment variables
+For the secured listener you just created:
+- `MOVEWORKS_TRIGGER_URL` — your Moveworks Listener webhook URL
+- `MOVEWORKS_API_KEY` — Moveworks API key secret; backend sends it as `Authorization: Bearer <key>`
+- `DEFAULT_NOTIFICATION_EMAIL` — optional default recipient for demo runs
+
+The dashboard now includes **Test Moveworks Connection**, which calls `/api/moveworks/test` from the browser through the App Service backend. The API key never reaches browser JavaScript.
+
+### Optional synchronous data/AI endpoints
 Use **one** dashboard aggregation endpoint:
 - `MOVEWORKS_DASHBOARD_URL` — GET endpoint returning ageing/SLA/DevOps/effectiveness snapshot
 
@@ -70,6 +78,7 @@ The backend accepts multiple common shapes. A recommended payload is:
 ```
 
 ## Dashboard API routes
+- `POST /api/moveworks/test` — real browser → App Service → secured Moveworks Listener connectivity test
 - `GET /api/dashboard` — live Moveworks governance snapshot
 - `POST /api/ai/query` — real Moveworks AI prompt
 - `POST /api/tickets/:id/assign` — assignment through Moveworks
@@ -86,3 +95,7 @@ The backend accepts multiple common shapes. A recommended payload is:
 
 ## Important
 The code and HTTP contract are tested locally against a mock Moveworks service. Live tenant execution still requires the actual Moveworks API/listener URLs and approved authentication values from your environment. Do not place ServiceNow or Azure DevOps credentials in browser JavaScript.
+
+
+## Listener vs synchronous AI
+A webhook listener returns an event receipt (`RECEIVED`) and is asynchronous. V4 can use it to trigger the governance workflow from the existing Ask AI box. To display the actual generated AI answer immediately in the dashboard, configure `MOVEWORKS_AI_URL` to a synchronous Moveworks Conversations API integration (or equivalent).
