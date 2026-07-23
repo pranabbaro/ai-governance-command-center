@@ -81,7 +81,7 @@ V5 never invents KPI data while those synchronous return paths are unavailable.
 4. Set `MOVEWORKS_TRIGGER_URL`, `MOVEWORKS_API_KEY`, and `DEFAULT_NOTIFICATION_EMAIL` under App Service → Environment variables.
 5. Save settings and restart App Service.
 6. Hard refresh the browser (`Ctrl+F5`).
-7. Verify `/health` returns version `5.0.0`.
+7. Verify `/health` returns version `8.0.0`.
 
 ## Tests
 
@@ -163,3 +163,7 @@ Create an HTTP Action in Agent Studio that POSTs the final governance output to 
 - Ask Governance AI reuses the latest live AI briefing and waits longer for asynchronous callbacks.
 - Adds manual Refresh live data control.
 - Preserves the V6 callback, webhook trigger, EOD, notification and assignment integrations.
+
+
+## V8 query behavior
+Quantitative questions such as "How many SLA breaches are there?" are answered directly from the latest live Moveworks/ServiceNow KPI snapshot. Analytical questions such as "Why are our SLAs breaching?" continue through the Moveworks AI workflow and display the generated RCA narrative.

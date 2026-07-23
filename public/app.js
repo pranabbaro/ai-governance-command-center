@@ -143,8 +143,34 @@ async function refreshDashboard(showToast=false) {
   finally { state.loading=false; render(); }
 }
 
-function resultSummary(result) {
+function liveKpiAnswer(prompt, source=state) {
+  const q=String(prompt||'').toLowerCase().replace(/[^a-z0-9% ]/g,' ');
+  const asksCount=/(how many|number of|what is the number|count of|total number|what(?:'s| is) the count|give me the count)/.test(q);
+  const asksCurrent=asksCount||/(current|currently|today|right now|live)/.test(q);
+  if(!asksCurrent) return null;
+
+  const sla=source.sla||{}; const ageing=source.ageing||{};
+  const breached=Number(sla.breached ?? sla.breached_count ?? source.slaBreached ?? state.slaBreached ?? 0);
+  const atRisk=Number(sla.atRisk ?? sla.at_risk_count ?? source.slaAtRisk ?? state.slaAtRisk ?? 0);
+  const critical=Number(sla.critical ?? sla.critical_count ?? source.slaCritical ?? state.slaCritical ?? 0);
+  const totalAttention=Number(sla.totalAttention ?? sla.total_sla_attention ?? source.slaTotalAttention ?? state.slaTotalAttention ?? (atRisk+breached));
+  const ageingTotal=Number(ageing.total ?? ageing.total_ageing_count ?? source.ageingTotal ?? state.ageingTotal ?? 0);
+
+  if(/sla/.test(q)&&/(breach|breached)/.test(q)) {
+    const incidentNote=/incident/.test(q)?' The current governance KPI counts breached SLA records; it does not yet de-duplicate them into unique incident numbers.':'';
+    return `There are **${breached} breached SLA records** in the latest live ServiceNow result.${incidentNote}`;
+  }
+  if(/sla/.test(q)&&/(critical)/.test(q)) return `There are **${critical} critical SLA records** in the latest live ServiceNow result.`;
+  if(/sla/.test(q)&&/(at risk|risk)/.test(q)) return `There are **${atRisk} SLA records at risk** in the latest live ServiceNow result.`;
+  if(/sla/.test(q)&&/(attention|total)/.test(q)) return `There are **${totalAttention} SLA records requiring attention** (${atRisk} at risk + ${breached} breached).`;
+  if(/ageing|aging/.test(q)&&/(ticket|backlog|incident|ritm|task)/.test(q)) return `There are **${ageingTotal} ageing tickets** in the latest live governance result.`;
+  return null;
+}
+
+function resultSummary(result, prompt='') {
   const r=result||{};
+  const direct=liveKpiAnswer(prompt,r);
+  if(direct) return direct;
   const ai=r.aiBriefing||r.ai_briefing||r.ai_analysis||r.analysis||r.recommendation||r.recommendations;
   if(ai) return typeof ai==='string'?ai:JSON.stringify(ai,null,2);
   const sla=r.sla||{}; const ageing=r.ageing||{};
@@ -169,14 +195,20 @@ async function waitForMoveworksResult(startedAt, requestId, timeoutMs=75000) {
 
 async function askAi(prompt) {
   const clean=String(prompt||'').trim(); if(!clean) return toast('Enter a question first.');
-  state.aiBusy=true; state.page='ai'; window.__aiAnswer=''; render();
+  state.page='ai';
+
+  // Quantitative governance questions should return the live KPI directly instead of a long RCA narrative.
+  const instant=liveKpiAnswer(clean,state);
+  if(instant) { window.__aiAnswer=instant; render(); return; }
+
+  state.aiBusy=true; window.__aiAnswer=''; render();
   try {
     const result=await api('/api/ai/query',{method:'POST',body:JSON.stringify({prompt:clean})});
     if(result.mode==='webhook-trigger') {
       window.__aiAnswer=result.answer||'Moveworks accepted the request. Waiting for the live callback…'; render();
       const callback=await waitForMoveworksResult(result.startedAt,result.requestId);
       if(callback) {
-        window.__aiAnswer=resultSummary(callback);
+        window.__aiAnswer=resultSummary(callback,clean);
         await refreshDashboard(false);
       } else {
         window.__aiAnswer='Moveworks accepted the request and the workflow is still running. The dashboard will refresh automatically when the callback result arrives.';
