@@ -155,3 +155,11 @@ PUBLIC_BASE_URL=https://<your-app>.azurewebsites.net
 ### Moveworks callback action
 
 Create an HTTP Action in Agent Studio that POSTs the final governance output to the callback endpoint. Add that HTTP Action at the end of the dashboard-triggered Compound Action/plugin workflow. Map the live SLA/ageing/AI values into the JSON body; do not hard-code demo values.
+
+
+## Version 7 additions
+- Displays live Moveworks AI SLA analysis directly on Command Center and SLA Intelligence pages.
+- Shows Total SLA Attention from the callback payload.
+- Ask Governance AI reuses the latest live AI briefing and waits longer for asynchronous callbacks.
+- Adds manual Refresh live data control.
+- Preserves the V6 callback, webhook trigger, EOD, notification and assignment integrations.

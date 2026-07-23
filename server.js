@@ -169,7 +169,7 @@ function normalizeDashboardPayload(payload) {
     mode: p.mode || 'live',
     generatedAt: p.generatedAt || p.generated_at || p.receivedAt || p.received_at || new Date().toISOString(),
     ageing: { incidentCount, ritmCount, taskCount, total: ageingTotal },
-    sla: { atRisk: slaAtRisk, critical: slaCritical, breached: slaBreached, compliance: p.sla_compliance ?? sla.compliance ?? null },
+    sla: { atRisk: slaAtRisk, critical: slaCritical, breached: slaBreached, totalAttention: num(sla.total_sla_attention ?? sla.totalAttention ?? p.total_sla_attention, slaAtRisk + slaBreached), compliance: p.sla_compliance ?? sla.compliance ?? null },
     daily: {
       morning: num(daily.morning ?? daily.morning_count, ageingTotal),
       updated: num(daily.updated ?? daily.updated_count),
@@ -281,7 +281,7 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 200, {
       status: 'ok',
       service: 'ai-governance-command-center',
-      version: '6.0.0',
+      version: '7.0.0',
       moveworksConfigured: Boolean(process.env.MOVEWORKS_DASHBOARD_URL || process.env.MOVEWORKS_AGEING_URL || process.env.MOVEWORKS_SLA_URL || process.env.MOVEWORKS_TRIGGER_URL),
       aiConfigured: Boolean(process.env.MOVEWORKS_AI_URL || process.env.MOVEWORKS_TRIGGER_URL),
       triggerConfigured: Boolean(process.env.MOVEWORKS_TRIGGER_URL),

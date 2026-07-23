@@ -4,7 +4,7 @@ const state = {
   page: 'command', search: '', selectedTicket: null, loading: true, live: false, triggerOnly: false, statusMessage: '', error: '', aiBusy: false,
   lastRefresh: new Date(), morning: 0, updated: 0, closed: 0, pending: 0,
   ageingTotal: 0, incidentCount: 0, ritmCount: 0, taskCount: 0,
-  slaAtRisk: 0, slaCritical: 0, slaBreached: 0, slaCompliance: null,
+  slaAtRisk: 0, slaCritical: 0, slaBreached: 0, slaTotalAttention: 0, slaCompliance: null,
   devopsHygiene: 0, devopsNonCompliant: 0, devopsLargestGap: '',
   tickets: [], slaBreaches: [], devopsItems: [], trend: [], aiBriefing: null
 };
@@ -24,6 +24,20 @@ function progress(value) { return `<div class="progress"><span style="width:${Ma
 function button(label, action, arg='', primary=false) { return `<button class="btn${primary?' primary':''}" data-action="${action}" data-arg="${escapeHtml(arg)}">${escapeHtml(label)}</button>`; }
 function toast(message) { const el=document.getElementById('toast'); el.textContent=message; el.hidden=false; clearTimeout(window.__toastTimer); window.__toastTimer=setTimeout(()=>{el.hidden=true;},3000); }
 function metric(label, value, sub, tone='blue') { return `<div class="metric tone-${tone}"><div><div class="metric-label">${escapeHtml(label)}</div><div class="metric-value">${escapeHtml(value)}</div><div class="metric-sub">${escapeHtml(sub)}</div></div></div>`; }
+function formatAiText(value='') {
+  let text = typeof value === 'string' ? value : JSON.stringify(value, null, 2);
+  text = escapeHtml(text);
+  text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  text = text.replace(/^###\s+(.+)$/gm, '<h4>$1</h4>');
+  text = text.replace(/^##\s+(.+)$/gm, '<h3>$1</h3>');
+  text = text.replace(/^#\s+(.+)$/gm, '<h3>$1</h3>');
+  text = text.replace(/^[-•]\s+(.+)$/gm, '<div class="ai-bullet">• $1</div>');
+  return text.replace(/\n/g, '<br>');
+}
+function aiInsightCard(compact=false) {
+  if (!state.aiBriefing) return `<div class="ai-insight-empty"><strong>✦ AI SLA Intelligence</strong><span>Run an SLA governance analysis from Ask Governance AI to populate management insights.</span></div>`;
+  return `<div class="ai-insight ${compact?'compact':''}"><div class="ai-insight-head"><div><span class="ai-kicker">MOVEWORKS AI</span><h2>AI SLA Intelligence</h2></div>${badge('Live analysis','success')}</div><div class="ai-insight-body">${formatAiText(state.aiBriefing)}</div><div class="ai-insight-footer">Based on the latest ServiceNow SLA governance run · ${escapeHtml(state.lastRefresh.toLocaleString())}</div></div>`;
+}
 function liveBanner() {
   if (state.loading) return `<div class="statusbar loading">Connecting to Moveworks…</div>`;
   if (state.triggerOnly) return `<div class="statusbar loading">● Moveworks webhook connected · ${escapeHtml(state.statusMessage || 'governance actions can be triggered; waiting for the first live governance callback')}</div>`;
@@ -39,7 +53,7 @@ function layout(content) {
     <nav>${nav.map(([key,label,icon])=>`<button class="navbtn ${state.page===key?'active':''}" data-nav="${key}"><span>${icon}</span>${label}</button>`).join('')}</nav>
     <div class="demo-note">${badge(state.live?'Live':'Integration','success')}<p>Moveworks is the AI and orchestration layer. ServiceNow and Azure DevOps remain systems of record.</p></div>
   </aside><main class="main">
-    <header class="topbar"><div><h1>${escapeHtml(title)}</h1><p>ServiceNow + Azure DevOps + Moveworks Agent Studio</p></div><div class="refresh">Auto refresh: 5 min</div></header>
+    <header class="topbar"><div><h1>${escapeHtml(title)}</h1><p>ServiceNow + Azure DevOps + Moveworks Agent Studio</p></div><div class="refresh-group"><button class="btn" data-action="refreshData">Refresh live data</button><div class="refresh">Auto refresh: 5 min</div></div></header>
     ${liveBanner()}${content}
   </main></div>`;
 }
@@ -74,6 +88,7 @@ function renderCommand() {
       <div class="brief">⚠ <span><strong>${state.slaCritical}</strong> critical SLA items need attention.</span></div>
       <div class="brief">◷ <span><strong>${state.pending}</strong> ageing tickets remain pending at EOD.</span></div>
     </div></section>
+    <section class="card ai-card-shell">${aiInsightCard(true)}</section>
     <section class="card"><div class="cardhead"><div><h2>Highest Risk Ageing Tickets</h2><p>Prioritized from live governance data</p></div>${button('View all','nav','ageing')}</div>${ticketTable(highest)}</section>`);
 }
 
@@ -85,7 +100,7 @@ function renderAgeing() {
 
 function renderSla() {
   const cards = state.slaBreaches.length ? state.slaBreaches.map(x=>`<div class="slacard"><div class="cardhead"><strong>${escapeHtml(x.id||x.number||'SLA')}</strong>${badge(x.team||'ServiceNow')}</div><p>${escapeHtml(x.summary||x.description||'Breached SLA record')}</p><div class="slameta"><span>Breach <strong>${escapeHtml(x.breach||x.percentage||'')}</strong></span><span>AI RCA <strong>${escapeHtml(x.cause||'Available via Ask AI')}</strong></span><span>Confidence <strong>${escapeHtml(x.confidence||'')}</strong></span></div>${button('Investigate with AI','aiPrompt',`Analyze SLA breach ${x.id||x.number||''}`,true)}</div>`).join('') : '<div class="empty">No detailed breach records returned by the dashboard endpoint.</div>';
-  return layout(`<section class="metrics four">${metric('SLA At Risk',state.slaAtRisk,'≥75% consumed','orange')}${metric('Critical SLA',state.slaCritical,'≥90% consumed','red')}${metric('SLA Breached',state.slaBreached,'Requires investigation','red')}${metric('SLA Compliance',state.slaCompliance?state.slaCompliance+'%':'—','Current period','green')}</section><section class="card"><h2>SLA Breach Intelligence</h2><div class="slagrid">${cards}</div></section>`);
+  return layout(`<section class="metrics four">${metric('SLA At Risk',state.slaAtRisk,'≥75% consumed','orange')}${metric('Critical SLA',state.slaCritical,'≥90% consumed','red')}${metric('SLA Breached',state.slaBreached,'Requires investigation','red')}${metric('Total SLA Attention',state.slaTotalAttention,'At risk + breached','purple')}</section><section class="card ai-card-shell">${aiInsightCard(false)}</section><section class="card"><h2>SLA Breach Intelligence</h2><div class="slagrid">${cards}</div></section>`);
 }
 
 function renderDevops() {
@@ -94,10 +109,11 @@ function renderDevops() {
 }
 
 function renderAi(answer='') {
+  const displayedAnswer = answer || state.aiBriefing || '';
   return layout(`<section class="ailayout"><div class="card"><div class="aihead"><div class="orb">✦</div><div><h2>Moveworks Governance AI</h2><p>Real AI prompt integrated into the management dashboard.</p></div></div>
     <div class="chips"><button data-action="aiPrompt" data-arg="What should management focus on today?">What should management focus on today?</button><button data-action="aiPrompt" data-arg="Why are SLA breaches happening?">Why are SLA breaches happening?</button><button data-action="aiPrompt" data-arg="Which ageing tickets are highest risk?">Highest-risk ageing tickets</button><button data-action="aiPrompt" data-arg="Summarize current governance risks and corrective actions">Summarize governance risks</button></div>
     <textarea id="aiInput" placeholder="Ask Moveworks AI about tickets, SLA, RCA or DevOps hygiene..."></textarea>${button(state.aiBusy?'Analyzing…':'Analyze','analyzeText','',true)}
-    ${answer?`<div class="aianswer"><strong>✦ Moveworks AI response</strong><p>${escapeHtml(answer).replace(/\n/g,'<br>')}</p><small>Generated from the configured Moveworks AI workflow.</small></div>`:''}
+    ${displayedAnswer?`<div class="aianswer"><strong>✦ Moveworks AI response</strong><div class="aianswer-content">${formatAiText(displayedAnswer)}</div><small>Generated from the configured Moveworks AI workflow and live ServiceNow SLA data.</small></div>`:''}
   </div><div class="card"><h2>Connected Intelligence</h2><div class="source"><strong>ServiceNow</strong><span>INC, RITM, TASK and SLA</span></div><div class="source"><strong>Azure DevOps</strong><span>Epic, Feature, Story and Task hygiene</span></div><div class="source"><strong>Moveworks Agent Studio</strong><span>Reasoning, governance actions and notifications</span></div></div></section>`);
 }
 
@@ -117,7 +133,7 @@ async function refreshDashboard(showToast=false) {
   try {
     const data=await api('/api/dashboard');
     state.triggerOnly=data.mode==='trigger-only'; state.statusMessage=data.message||''; state.live=!state.triggerOnly; state.ageingTotal=data.ageing?.total||0; state.incidentCount=data.ageing?.incidentCount||0; state.ritmCount=data.ageing?.ritmCount||0; state.taskCount=data.ageing?.taskCount||0;
-    state.slaAtRisk=data.sla?.atRisk||0; state.slaCritical=data.sla?.critical||0; state.slaBreached=data.sla?.breached||0; state.slaCompliance=data.sla?.compliance??null;
+    state.slaAtRisk=data.sla?.atRisk||0; state.slaCritical=data.sla?.critical||0; state.slaBreached=data.sla?.breached||0; state.slaTotalAttention=data.sla?.totalAttention ?? (state.slaAtRisk+state.slaBreached); state.slaCompliance=data.sla?.compliance??null;
     state.morning=data.daily?.morning||0; state.updated=data.daily?.updated||0; state.closed=data.daily?.closed||0; state.pending=data.daily?.pending||0;
     state.tickets=Array.isArray(data.tickets)?data.tickets:[]; state.slaBreaches=Array.isArray(data.slaBreaches)?data.slaBreaches:[];
     state.devopsHygiene=data.devops?.hygiene||0; state.devopsNonCompliant=data.devops?.nonCompliant||0; state.devopsLargestGap=data.devops?.largestGap||''; state.devopsItems=Array.isArray(data.devops?.items)?data.devops.items:[];
@@ -140,7 +156,7 @@ function resultSummary(result) {
   return parts.length?`Live Moveworks governance result received.\n\n${parts.join('\n')}`:'Live Moveworks governance result received and the dashboard has been refreshed.';
 }
 
-async function waitForMoveworksResult(startedAt, requestId, timeoutMs=30000) {
+async function waitForMoveworksResult(startedAt, requestId, timeoutMs=75000) {
   const started=Date.now();
   while(Date.now()-started<timeoutMs) {
     await new Promise(resolve=>setTimeout(resolve,2000));
@@ -180,6 +196,7 @@ function openAssign(ticketId) {
 }
 
 async function handleAction(action,arg) {
+  if(action==='refreshData'){await refreshDashboard(true);return;}
   if(action==='nav'){state.page=arg;render();return;} if(action==='assign')return openAssign(arg); if(action==='closeModal'){document.getElementById('assignModal')?.remove();return;}
   if(action==='confirmAssign') { const input=document.getElementById('assigneeSelect'); if(!state.selectedTicket||!input?.value.trim()) return toast('Enter an assignee.'); try { await api(`/api/tickets/${encodeURIComponent(state.selectedTicket.id)}/assign`,{method:'POST',body:JSON.stringify({assignee:input.value.trim()})}); toast(`${state.selectedTicket.id} assignment requested through Moveworks`); document.getElementById('assignModal')?.remove(); await refreshDashboard(); } catch(err){toast(err.message);} return; }
   if(action==='notifyTicket'){try{await api(`/api/tickets/${encodeURIComponent(arg)}/notify`,{method:'POST',body:'{}'});toast(`Moveworks notification triggered for ${arg}`);}catch(err){toast(err.message);}return;}
