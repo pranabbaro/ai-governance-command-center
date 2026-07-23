@@ -26,7 +26,7 @@ function toast(message) { const el=document.getElementById('toast'); el.textCont
 function metric(label, value, sub, tone='blue') { return `<div class="metric tone-${tone}"><div><div class="metric-label">${escapeHtml(label)}</div><div class="metric-value">${escapeHtml(value)}</div><div class="metric-sub">${escapeHtml(sub)}</div></div></div>`; }
 function liveBanner() {
   if (state.loading) return `<div class="statusbar loading">Connecting to Moveworks…</div>`;
-  if (state.triggerOnly) return `<div class="statusbar loading">● Moveworks webhook connected · ${escapeHtml(state.statusMessage || 'governance actions can be triggered; live KPI return is not configured yet')}</div>`;
+  if (state.triggerOnly) return `<div class="statusbar loading">● Moveworks webhook connected · ${escapeHtml(state.statusMessage || 'governance actions can be triggered; waiting for the first live governance callback')}</div>`;
   if (state.live) return `<div class="statusbar live">● Live data from Moveworks · refreshed ${state.lastRefresh.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>`;
   return `<div class="statusbar error">⚠ ${escapeHtml(state.error || 'Moveworks integration is not configured')}</div>`;
 }
@@ -127,11 +127,48 @@ async function refreshDashboard(showToast=false) {
   finally { state.loading=false; render(); }
 }
 
+function resultSummary(result) {
+  const r=result||{};
+  const ai=r.aiBriefing||r.ai_briefing||r.ai_analysis||r.analysis||r.recommendation||r.recommendations;
+  if(ai) return typeof ai==='string'?ai:JSON.stringify(ai,null,2);
+  const sla=r.sla||{}; const ageing=r.ageing||{};
+  const parts=[];
+  if(sla.atRisk!==undefined||sla.at_risk_count!==undefined) parts.push(`SLA at risk: ${sla.atRisk??sla.at_risk_count??0}`);
+  if(sla.critical!==undefined||sla.critical_count!==undefined) parts.push(`Critical SLA: ${sla.critical??sla.critical_count??0}`);
+  if(sla.breached!==undefined||sla.breached_count!==undefined) parts.push(`SLA breached: ${sla.breached??sla.breached_count??0}`);
+  if(ageing.total!==undefined||ageing.total_ageing_count!==undefined) parts.push(`Ageing backlog: ${ageing.total??ageing.total_ageing_count??0}`);
+  return parts.length?`Live Moveworks governance result received.\n\n${parts.join('\n')}`:'Live Moveworks governance result received and the dashboard has been refreshed.';
+}
+
+async function waitForMoveworksResult(startedAt, requestId, timeoutMs=30000) {
+  const started=Date.now();
+  while(Date.now()-started<timeoutMs) {
+    await new Promise(resolve=>setTimeout(resolve,2000));
+    const qs=new URLSearchParams(); if(startedAt) qs.set('since',startedAt); if(requestId) qs.set('request_id',requestId);
+    const status=await api(`/api/moveworks/result?${qs.toString()}`);
+    if(status.status==='ready'&&status.result) return status.result;
+  }
+  return null;
+}
+
 async function askAi(prompt) {
   const clean=String(prompt||'').trim(); if(!clean) return toast('Enter a question first.');
   state.aiBusy=true; state.page='ai'; window.__aiAnswer=''; render();
-  try { const result=await api('/api/ai/query',{method:'POST',body:JSON.stringify({prompt:clean})}); window.__aiAnswer=result.answer||'No AI response returned.'; }
-  catch(err) { window.__aiAnswer=`Unable to contact Moveworks AI: ${err.message}`; }
+  try {
+    const result=await api('/api/ai/query',{method:'POST',body:JSON.stringify({prompt:clean})});
+    if(result.mode==='webhook-trigger') {
+      window.__aiAnswer=result.answer||'Moveworks accepted the request. Waiting for the live callback…'; render();
+      const callback=await waitForMoveworksResult(result.startedAt,result.requestId);
+      if(callback) {
+        window.__aiAnswer=resultSummary(callback);
+        await refreshDashboard(false);
+      } else {
+        window.__aiAnswer='Moveworks accepted the request and the workflow is still running. The dashboard will refresh automatically when the callback result arrives.';
+      }
+    } else {
+      window.__aiAnswer=result.answer||'No AI response returned.';
+    }
+  } catch(err) { window.__aiAnswer=`Unable to contact Moveworks AI: ${err.message}`; }
   finally { state.aiBusy=false; render(); }
 }
 

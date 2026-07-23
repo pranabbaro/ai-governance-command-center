@@ -1,7 +1,7 @@
 {
   "name": "ai-governance-command-center-appservice",
   "private": true,
-  "version": "5.0.0",
+  "version": "6.0.0",
   "description": "Moveworks Hackathon - AI Governance Command Center for Azure App Service",
   "engines": { "node": ">=20" },
   "scripts": {

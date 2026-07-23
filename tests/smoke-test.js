@@ -9,7 +9,7 @@ const html = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
 for (const text of ['Command Center','Ageing Tickets','SLA Intelligence','DevOps Governance','Ask Governance AI','Send EOD Report','Moveworks Hackathon']) {
   if (!js.includes(text) && !html.includes(text)) throw new Error(`Expected UI text not found: ${text}`);
 }
-for (const endpoint of ['/api/dashboard','/api/ai/query','/api/reports/eod']) {
+for (const endpoint of ['/api/dashboard','/api/ai/query','/api/moveworks/result','/api/reports/eod']) {
   if (!fs.readFileSync(path.join(root,'server.js'),'utf8').includes(endpoint)) throw new Error(`Missing API route: ${endpoint}`);
 }
 new Function(js);

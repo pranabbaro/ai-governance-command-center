@@ -92,3 +92,66 @@ npm test
 ```
 
 The tests verify App Service startup, trigger-only state, secured webhook proxying, top-level `user_email`/`prompt` payload mapping, AI webhook fallback, assignment/notification/EOD proxy routes, and Moveworks Hackathon branding.
+
+## V6 - Moveworks callback integration
+
+V6 adds a real callback path so an asynchronous Moveworks webhook workflow can send completed governance results back to the Azure App Service dashboard.
+
+### App Service callback endpoint
+
+Moveworks should POST completed governance results to:
+
+```text
+https://<your-app>.azurewebsites.net/api/moveworks/result
+```
+
+The dashboard automatically reads the latest callback through `GET /api/moveworks/result` and `/api/dashboard`.
+
+A callback can be partial. For SLA-only governance this is valid:
+
+```json
+{
+  "at_risk_count": 5,
+  "critical_count": 2,
+  "breached_count": 3,
+  "total_sla_attention": 10,
+  "ai_analysis": "The main contributing pattern is ..."
+}
+```
+
+A richer callback can use nested objects:
+
+```json
+{
+  "request_id": "optional-request-id",
+  "sla": {
+    "at_risk_count": 5,
+    "critical_count": 2,
+    "breached_count": 3
+  },
+  "ageing": {
+    "incident_count": 4,
+    "ritm_count": 3,
+    "task_count": 2,
+    "total_ageing_count": 9
+  },
+  "ai_analysis": "AI-generated governance analysis"
+}
+```
+
+When the dashboard sends a webhook request to Moveworks, V6 also includes `callback_url` and `request_id` in the webhook body. The AI page polls the callback endpoint for up to 30 seconds and automatically refreshes KPI cards when a new callback arrives.
+
+### Recommended Azure environment variables
+
+```text
+MOVEWORKS_TRIGGER_URL=<published secured Moveworks listener URL>
+MOVEWORKS_API_KEY=<Moveworks API key secret>
+DEFAULT_NOTIFICATION_EMAIL=<demo notification email>
+PUBLIC_BASE_URL=https://<your-app>.azurewebsites.net
+```
+
+`MOVEWORKS_CALLBACK_SECRET` is optional. Leave it unset for the hackathon demo. If set, Moveworks must send the same value in the `X-Dashboard-Callback-Secret` header.
+
+### Moveworks callback action
+
+Create an HTTP Action in Agent Studio that POSTs the final governance output to the callback endpoint. Add that HTTP Action at the end of the dashboard-triggered Compound Action/plugin workflow. Map the live SLA/ageing/AI values into the JSON body; do not hard-code demo values.

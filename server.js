@@ -6,6 +6,28 @@ const { URL } = require('node:url');
 const port = Number(process.env.PORT || 8080);
 const publicDir = path.join(__dirname, 'public');
 const requestTimeoutMs = Number(process.env.UPSTREAM_TIMEOUT_MS || 25000);
+const resultStorePath = process.env.RESULT_STORE_PATH || (process.env.WEBSITE_SITE_NAME ? '/home/data/ai-governance-latest-result.json' : '/tmp/ai-governance-latest-result.json');
+let latestMoveworksResult = null;
+
+function loadLatestResult() {
+  try {
+    if (fs.existsSync(resultStorePath)) latestMoveworksResult = JSON.parse(fs.readFileSync(resultStorePath, 'utf8'));
+  } catch (err) {
+    console.warn('Unable to load previous Moveworks result:', err.message);
+  }
+}
+
+function saveLatestResult(value) {
+  latestMoveworksResult = value;
+  try {
+    fs.mkdirSync(path.dirname(resultStorePath), { recursive: true });
+    fs.writeFileSync(resultStorePath, JSON.stringify(value, null, 2));
+  } catch (err) {
+    console.warn('Unable to persist Moveworks result:', err.message);
+  }
+}
+
+loadLatestResult();
 
 const mime = {
   '.html': 'text/html; charset=utf-8',
@@ -143,8 +165,9 @@ function normalizeDashboardPayload(payload) {
   const slaBreached = num(sla.breached_count ?? sla.breached ?? p.sla_breached);
 
   return {
-    source: 'moveworks',
-    generatedAt: p.generatedAt || p.generated_at || new Date().toISOString(),
+    source: p.source || 'moveworks',
+    mode: p.mode || 'live',
+    generatedAt: p.generatedAt || p.generated_at || p.receivedAt || p.received_at || new Date().toISOString(),
     ageing: { incidentCount, ritmCount, taskCount, total: ageingTotal },
     sla: { atRisk: slaAtRisk, critical: slaCritical, breached: slaBreached, compliance: p.sla_compliance ?? sla.compliance ?? null },
     daily: {
@@ -163,14 +186,46 @@ function normalizeDashboardPayload(payload) {
       largestGap: devops.largest_gap || devops.largestGap || '',
       items: Array.isArray(devopsItemsRaw) ? devopsItemsRaw : []
     },
-    aiBriefing: p.aiBriefing || p.ai_briefing || null,
+    aiBriefing: p.aiBriefing || p.ai_briefing || p.ai_analysis || p.analysis || p.recommendation || p.recommendations || null,
     trend: Array.isArray(p.trend) ? p.trend : []
   };
+}
+
+function normalizeCallbackPayload(payload) {
+  const p = unwrap(payload);
+  const callback = {
+    ...p,
+    source: 'moveworks-callback',
+    mode: 'live-callback',
+    generatedAt: p.generatedAt || p.generated_at || p.receivedAt || p.received_at || new Date().toISOString()
+  };
+
+  if (!callback.sla && (p.at_risk_count !== undefined || p.critical_count !== undefined || p.breached_count !== undefined || p.total_sla_attention !== undefined)) {
+    callback.sla = {
+      at_risk_count: p.at_risk_count,
+      critical_count: p.critical_count,
+      breached_count: p.breached_count,
+      total_sla_attention: p.total_sla_attention
+    };
+  }
+  if (!callback.ageing && (p.incident_count !== undefined || p.ritm_count !== undefined || p.task_count !== undefined || p.total_ageing_count !== undefined)) {
+    callback.ageing = {
+      incident_count: p.incident_count,
+      ritm_count: p.ritm_count,
+      task_count: p.task_count,
+      total_ageing_count: p.total_ageing_count
+    };
+  }
+  return callback;
 }
 
 async function buildDashboard() {
   if (process.env.MOVEWORKS_DASHBOARD_URL) {
     return normalizeDashboardPayload(await callMoveworks(process.env.MOVEWORKS_DASHBOARD_URL));
+  }
+
+  if (latestMoveworksResult) {
+    return normalizeDashboardPayload(latestMoveworksResult);
   }
 
   // Optional split endpoints: useful when Moveworks exposes ageing/SLA/DevOps as separate published APIs.
@@ -208,6 +263,17 @@ function pickAiAnswer(payload) {
   return p.answer || p.analysis || p.generated_output || p.generatedOutput || p.text || p.message || p.response || p.ai_sla_analysis?.generated_output || JSON.stringify(p);
 }
 
+function externalBaseUrl(req) {
+  if (process.env.PUBLIC_BASE_URL) return process.env.PUBLIC_BASE_URL.replace(/\/$/, '');
+  const proto = String(req.headers['x-forwarded-proto'] || 'http').split(',')[0].trim();
+  const host = String(req.headers['x-forwarded-host'] || req.headers.host || 'localhost').split(',')[0].trim();
+  return `${proto}://${host}`;
+}
+
+function requestId() {
+  return `gov-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
 
@@ -215,10 +281,12 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 200, {
       status: 'ok',
       service: 'ai-governance-command-center',
-      version: '5.0.0',
+      version: '6.0.0',
       moveworksConfigured: Boolean(process.env.MOVEWORKS_DASHBOARD_URL || process.env.MOVEWORKS_AGEING_URL || process.env.MOVEWORKS_SLA_URL || process.env.MOVEWORKS_TRIGGER_URL),
       aiConfigured: Boolean(process.env.MOVEWORKS_AI_URL || process.env.MOVEWORKS_TRIGGER_URL),
-      triggerConfigured: Boolean(process.env.MOVEWORKS_TRIGGER_URL)
+      triggerConfigured: Boolean(process.env.MOVEWORKS_TRIGGER_URL),
+      callbackReady: Boolean(latestMoveworksResult),
+      callbackEndpoint: '/api/moveworks/result'
     });
   }
 
@@ -234,9 +302,47 @@ const server = http.createServer(async (req, res) => {
           trigger: Boolean(process.env.MOVEWORKS_TRIGGER_URL),
           assign: Boolean(process.env.MOVEWORKS_ASSIGN_URL),
           notify: Boolean(process.env.MOVEWORKS_NOTIFY_URL),
-          eod: Boolean(process.env.MOVEWORKS_EOD_URL)
+          eod: Boolean(process.env.MOVEWORKS_EOD_URL),
+          callback: true
         }
       });
+    }
+
+    if (url.pathname === '/api/moveworks/result' && req.method === 'POST') {
+      if (process.env.MOVEWORKS_CALLBACK_SECRET) {
+        const provided = req.headers['x-dashboard-callback-secret'];
+        if (provided !== process.env.MOVEWORKS_CALLBACK_SECRET) return sendJson(res, 401, { error: 'Invalid callback secret' });
+      }
+      const body = await readJsonBody(req);
+      const receivedAt = new Date().toISOString();
+      const normalizedInput = normalizeCallbackPayload({ ...body, receivedAt });
+      const dashboard = normalizeDashboardPayload(normalizedInput);
+      const stored = {
+        ...normalizedInput,
+        ...dashboard,
+        request_id: body.request_id || body.requestId || null,
+        prompt: body.prompt || null,
+        receivedAt
+      };
+      saveLatestResult(stored);
+      return sendJson(res, 200, { status: 'ok', message: 'Moveworks governance result received', receivedAt, request_id: stored.request_id });
+    }
+
+    if (url.pathname === '/api/moveworks/result' && req.method === 'GET') {
+      if (!latestMoveworksResult) return sendJson(res, 200, { status: 'waiting', message: 'No Moveworks governance result received yet' });
+      const since = url.searchParams.get('since');
+      if (since) {
+        const resultTime = Date.parse(latestMoveworksResult.receivedAt || latestMoveworksResult.generatedAt || 0);
+        const sinceTime = Date.parse(since);
+        if (Number.isFinite(sinceTime) && (!Number.isFinite(resultTime) || resultTime <= sinceTime)) {
+          return sendJson(res, 200, { status: 'waiting', message: 'Waiting for a newer Moveworks governance result' });
+        }
+      }
+      const requestId = url.searchParams.get('request_id');
+      if (requestId && latestMoveworksResult.request_id && latestMoveworksResult.request_id !== requestId) {
+        return sendJson(res, 200, { status: 'waiting', message: 'Waiting for matching Moveworks governance result' });
+      }
+      return sendJson(res, 200, { status: 'ready', result: latestMoveworksResult });
     }
 
     if (url.pathname === '/api/dashboard' && req.method === 'GET') {
@@ -248,6 +354,8 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === '/api/moveworks/test' && req.method === 'POST') {
       if (!process.env.MOVEWORKS_TRIGGER_URL) return sendJson(res, 503, { error: 'MOVEWORKS_TRIGGER_URL is not configured' });
       const body = await readJsonBody(req);
+      const startedAt = new Date().toISOString();
+      const reqId = requestId();
       const payload = await callMoveworks(process.env.MOVEWORKS_TRIGGER_URL, {
         method: 'POST',
         body: {
@@ -255,10 +363,12 @@ const server = http.createServer(async (req, res) => {
           prompt: body.prompt || 'Run AI Ticket Governance',
           user_email: body.user_email || process.env.DEFAULT_NOTIFICATION_EMAIL || undefined,
           source: 'azure_app_service_dashboard',
-          requested_at: new Date().toISOString()
+          requested_at: startedAt,
+          request_id: reqId,
+          callback_url: `${externalBaseUrl(req)}/api/moveworks/result`
         }
       });
-      return sendJson(res, 200, { success: true, moveworks: payload });
+      return sendJson(res, 200, { success: true, moveworks: payload, requestId: reqId, startedAt });
     }
 
     if (url.pathname === '/api/ai/query' && req.method === 'POST') {
@@ -273,6 +383,8 @@ const server = http.createServer(async (req, res) => {
         return sendJson(res, 200, { answer: pickAiAnswer(payload), mode: 'synchronous-ai', raw: process.env.EXPOSE_UPSTREAM_RAW === 'true' ? payload : undefined });
       }
       if (!process.env.MOVEWORKS_TRIGGER_URL) return sendJson(res, 503, { error: 'MOVEWORKS_AI_URL or MOVEWORKS_TRIGGER_URL is not configured' });
+      const startedAt = new Date().toISOString();
+      const reqId = requestId();
       const payload = await callMoveworks(process.env.MOVEWORKS_TRIGGER_URL, {
         method: 'POST',
         body: {
@@ -281,12 +393,17 @@ const server = http.createServer(async (req, res) => {
           user_email: body.user_email || process.env.DEFAULT_NOTIFICATION_EMAIL || undefined,
           context: body.context || 'dashboard',
           source: 'azure_app_service_dashboard',
-          requested_at: new Date().toISOString()
+          requested_at: startedAt,
+          request_id: reqId,
+          callback_url: `${externalBaseUrl(req)}/api/moveworks/result`
         }
       });
       return sendJson(res, 202, {
-        answer: 'Moveworks accepted the governance request and started the published webhook workflow. The current listener is asynchronous, so the execution continues in Moveworks. Live KPI return and an immediate AI answer in this panel require a synchronous Moveworks response endpoint.',
+        answer: 'Moveworks accepted the governance request. Waiting for the live governance callback…',
         mode: 'webhook-trigger',
+        requestId: reqId,
+        startedAt,
+        callbackUrl: `${externalBaseUrl(req)}/api/moveworks/result`,
         moveworks: payload
       });
     }
