@@ -1,3 +1,9 @@
+## V8.1.0
+- Immediate KPI answers for SLA count/number questions.
+- No long AI workflow for factual SLA counts.
+- Browser cache-busting for app.js/styles.css.
+- Static assets served no-cache to avoid stale deployments.
+
 # AI Governance Command Center — Moveworks Hackathon V5
 
 Azure App Service–ready management dashboard that preserves the existing UI and uses Moveworks Agent Studio as the orchestration layer.

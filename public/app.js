@@ -144,9 +144,12 @@ async function refreshDashboard(showToast=false) {
 }
 
 function liveKpiAnswer(prompt, source=state) {
-  const q=String(prompt||'').toLowerCase().replace(/[^a-z0-9% ]/g,' ');
-  const asksCount=/(how many|number of|what is the number|count of|total number|what(?:'s| is) the count|give me the count)/.test(q);
-  const asksCurrent=asksCount||/(current|currently|today|right now|live)/.test(q);
+  // Fast path for factual/count questions. These must never invoke the long AI/RCA workflow.
+  const raw=String(prompt||'').trim();
+  const q=raw.toLowerCase().replace(/[’']/g,'').replace(/[^a-z0-9% ]/g,' ').replace(/\s+/g,' ').trim();
+  const asksNumber=/(how many|number of|what is the number|whats the number|count of|what is the count|whats the count|give me the count|total number|total count|quantity)/.test(q)
+    || /\b(number|count)\b/.test(q);
+  const asksCurrent=asksNumber || /\b(current|currently|today|right now|live|latest)\b/.test(q);
   if(!asksCurrent) return null;
 
   const sla=source.sla||{}; const ageing=source.ageing||{};
@@ -156,14 +159,17 @@ function liveKpiAnswer(prompt, source=state) {
   const totalAttention=Number(sla.totalAttention ?? sla.total_sla_attention ?? source.slaTotalAttention ?? state.slaTotalAttention ?? (atRisk+breached));
   const ageingTotal=Number(ageing.total ?? ageing.total_ageing_count ?? source.ageingTotal ?? state.ageingTotal ?? 0);
 
-  if(/sla/.test(q)&&/(breach|breached)/.test(q)) {
-    const incidentNote=/incident/.test(q)?' The current governance KPI counts breached SLA records; it does not yet de-duplicate them into unique incident numbers.':'';
-    return `There are **${breached} breached SLA records** in the latest live ServiceNow result.${incidentNote}`;
+  const isSla=/\bsla\b/.test(q);
+  if(isSla && /\b(breach|breached|breaches)\b/.test(q)) {
+    const incidentNote=/\bincident|incidents\b/.test(q)
+      ? ' This is the live count of breached SLA records; the current feed does not yet de-duplicate them into unique incident IDs.'
+      : '';
+    return `**${breached} breached SLA records** are currently reported in the latest live ServiceNow governance data.${incidentNote}`;
   }
-  if(/sla/.test(q)&&/(critical)/.test(q)) return `There are **${critical} critical SLA records** in the latest live ServiceNow result.`;
-  if(/sla/.test(q)&&/(at risk|risk)/.test(q)) return `There are **${atRisk} SLA records at risk** in the latest live ServiceNow result.`;
-  if(/sla/.test(q)&&/(attention|total)/.test(q)) return `There are **${totalAttention} SLA records requiring attention** (${atRisk} at risk + ${breached} breached).`;
-  if(/ageing|aging/.test(q)&&/(ticket|backlog|incident|ritm|task)/.test(q)) return `There are **${ageingTotal} ageing tickets** in the latest live governance result.`;
+  if(isSla && /\bcritical\b/.test(q)) return `**${critical} critical SLA records** are currently reported in the latest live ServiceNow governance data.`;
+  if(isSla && /\b(at risk|risk)\b/.test(q)) return `**${atRisk} SLA records are at risk** in the latest live ServiceNow governance data.`;
+  if(isSla && /\b(attention|total)\b/.test(q)) return `**${totalAttention} SLA records require attention** (${atRisk} at risk + ${breached} breached).`;
+  if(/\b(ageing|aging)\b/.test(q) && /\b(ticket|tickets|backlog|incident|incidents|ritm|task|tasks)\b/.test(q)) return `**${ageingTotal} ageing tickets** are currently reported in the latest live governance data.`;
   return null;
 }
 
