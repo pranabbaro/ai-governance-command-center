@@ -144,11 +144,14 @@ async function refreshDashboard(showToast=false) {
 }
 
 function liveKpiAnswer(prompt, source=state) {
-  // Fast path for factual/count questions. These must never invoke the long AI/RCA workflow.
+  // Deterministic fast path for factual governance questions.
+  // Never invoke the long Moveworks RCA workflow for simple counts.
   const raw=String(prompt||'').trim();
   const q=raw.toLowerCase().replace(/[’']/g,'').replace(/[^a-z0-9% ]/g,' ').replace(/\s+/g,' ').trim();
-  const asksNumber=/(how many|number of|what is the number|whats the number|count of|what is the count|whats the count|give me the count|total number|total count|quantity)/.test(q)
-    || /\b(number|count)\b/.test(q);
+
+  const asksNumber=/\b(how many|number|count|total|quantity)\b/.test(q)
+    || /\bwhat(?:s| is)\b.*\b(number|count|total)\b/.test(q)
+    || /\bgive me\b.*\b(number|count|total)\b/.test(q);
   const asksCurrent=asksNumber || /\b(current|currently|today|right now|live|latest)\b/.test(q);
   if(!asksCurrent) return null;
 
@@ -159,16 +162,20 @@ function liveKpiAnswer(prompt, source=state) {
   const totalAttention=Number(sla.totalAttention ?? sla.total_sla_attention ?? source.slaTotalAttention ?? state.slaTotalAttention ?? (atRisk+breached));
   const ageingTotal=Number(ageing.total ?? ageing.total_ageing_count ?? source.ageingTotal ?? state.ageingTotal ?? 0);
 
-  const isSla=/\bsla\b/.test(q);
-  if(isSla && /\b(breach|breached|breaches)\b/.test(q)) {
-    const incidentNote=/\bincident|incidents\b/.test(q)
-      ? ' This is the live count of breached SLA records; the current feed does not yet de-duplicate them into unique incident IDs.'
+  const mentionsSla=/\bsla\b/.test(q);
+  const mentionsBreach=/\b(breach|breached|breaches|breaching)\b/.test(q);
+  const mentionsIncident=/\b(incident|incidents|inc)\b/.test(q);
+
+  // Treat "breached incidents" as an SLA-count question when the dashboard context is SLA governance.
+  if((mentionsSla || mentionsIncident) && mentionsBreach) {
+    const incidentNote=mentionsIncident
+      ? ' This value is the count of breached SLA records. The current feed does not yet de-duplicate them into unique incident IDs.'
       : '';
     return `**${breached} breached SLA records** are currently reported in the latest live ServiceNow governance data.${incidentNote}`;
   }
-  if(isSla && /\bcritical\b/.test(q)) return `**${critical} critical SLA records** are currently reported in the latest live ServiceNow governance data.`;
-  if(isSla && /\b(at risk|risk)\b/.test(q)) return `**${atRisk} SLA records are at risk** in the latest live ServiceNow governance data.`;
-  if(isSla && /\b(attention|total)\b/.test(q)) return `**${totalAttention} SLA records require attention** (${atRisk} at risk + ${breached} breached).`;
+  if(mentionsSla && /\bcritical\b/.test(q)) return `**${critical} critical SLA records** are currently reported in the latest live ServiceNow governance data.`;
+  if(mentionsSla && /\b(at risk|risk)\b/.test(q)) return `**${atRisk} SLA records are at risk** in the latest live ServiceNow governance data.`;
+  if(mentionsSla && /\b(attention|total)\b/.test(q)) return `**${totalAttention} SLA records require attention** (${atRisk} at risk + ${breached} breached).`;
   if(/\b(ageing|aging)\b/.test(q) && /\b(ticket|tickets|backlog|incident|incidents|ritm|task|tasks)\b/.test(q)) return `**${ageingTotal} ageing tickets** are currently reported in the latest live governance data.`;
   return null;
 }
@@ -202,6 +209,7 @@ async function waitForMoveworksResult(startedAt, requestId, timeoutMs=75000) {
 async function askAi(prompt) {
   const clean=String(prompt||'').trim(); if(!clean) return toast('Enter a question first.');
   state.page='ai';
+  window.__lastAiQuestion=clean;
 
   // Quantitative governance questions should return the live KPI directly instead of a long RCA narrative.
   const instant=liveKpiAnswer(clean,state);

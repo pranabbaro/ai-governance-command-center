@@ -1,4 +1,4 @@
-## V8.1.0
+## V8.2.0
 - Immediate KPI answers for SLA count/number questions.
 - No long AI workflow for factual SLA counts.
 - Browser cache-busting for app.js/styles.css.
