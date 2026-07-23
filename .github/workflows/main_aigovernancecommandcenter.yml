@@ -52,4 +52,4 @@ jobs:
           app-name: 'AIGovernanceCommandCenter'
           slot-name: 'Production'
           package: .
-          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_4CFAC0BE3CE84C2585035527D53259F9 }}
+          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_64F774B23A5440C0AAB657F5EA8BA351 }}
