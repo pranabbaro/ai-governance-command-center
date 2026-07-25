@@ -1,12 +1,12 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const root = path.join(__dirname, '..');
-for (const file of ['server.js','public/index.html','public/app.js','public/styles.css','public/assets/ai-operations-agent-3d.png']) {
+for (const file of ['server.js','public/index.html','public/app.js','public/styles.css','public/assets/ai-operations-agent-3d-clean.png']) {
   if (!fs.existsSync(path.join(root, file))) throw new Error(`Missing required file: ${file}`);
 }
 const js = fs.readFileSync(path.join(root, 'public/app.js'), 'utf8');
 const html = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
-for (const text of ['AI Operations Agent','Command Center','Ageing Tickets','SLA Intelligence','DevOps Governance','Ask Governance AI','Send EOD Report','Moveworks Hackathon','AI SLA Intelligence','Refresh live data','liveKpiAnswer','breached SLA records','startVoice','readAloud','AI OPERATIONS RESULT','Voice questions are answered aloud automatically','speakVoiceResponse','ai-operations-agent-3d.png']) {
+for (const text of ['AI Operations Agent','Command Center','Ageing Tickets','SLA Intelligence','DevOps Governance','Ask Governance AI','Send EOD Report','Moveworks Hackathon','AI SLA Intelligence','Refresh live data','liveKpiAnswer','breached SLA records','startVoice','readAloud','AI OPERATIONS RESULT','Voice questions are answered aloud automatically','speakVoiceResponse','ai-operations-agent-3d-clean.png']) {
   if (!js.includes(text) && !html.includes(text)) throw new Error(`Expected UI text not found: ${text}`);
 }
 for (const endpoint of ['/api/dashboard','/api/ai/query','/api/moveworks/result','/api/reports/eod']) {

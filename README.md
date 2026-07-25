@@ -208,7 +208,7 @@ Create an HTTP Action in Agent Studio that POSTs the final governance output to 
 ## V8 query behavior
 Quantitative questions such as "How many SLA breaches are there?" are answered directly from the latest live Moveworks/ServiceNow KPI snapshot. Analytical questions such as "Why are our SLAs breaching?" continue through the Moveworks AI workflow and display the generated RCA narrative.
 
-## Version 10.1.0
+## Version 10.2.0
 
 - Minimal AI-first landing page
 - 3D AI visual occupies 80% of the desktop home page

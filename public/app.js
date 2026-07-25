@@ -180,9 +180,11 @@ function renderAgent() {
       </section>
 
       <section class="agent-visual-80" aria-label="3D AI Operations Agent">
-        <img src="/assets/ai-operations-agent-3d.png?v=10.1.0" alt="Futuristic 3D AI Operations Agent" />
+        <img src="/assets/ai-operations-agent-3d-clean.png?v=10.2.0" alt="Futuristic 3D AI Operations Agent" />
         <div class="agent-visual-shade"></div>
-        <div class="agent-greeting"><strong>Hello! 👋</strong><span>I’m your AI Operations Agent.<br>How can I assist you today?</span></div>
+        ${window.__homeResponse
+          ? `<div class="agent-home-response ${window.__homeBusy?'is-busy':''}"><strong>${window.__homeBusy?'Listening & analyzing…':'AI Operations Agent'}</strong><span>${formatAiText(window.__homeResponse)}</span></div>`
+          : `<div class="agent-greeting"><strong>Hello! 👋</strong><span>I’m your AI Operations Agent.<br>How can I assist you today?</span></div>`}
       </section>
 
       <section class="agent-command-dock">
@@ -224,10 +226,10 @@ function startVoice(targetId='agentPrompt') {
   if(!SR) return toast('Voice recognition is not supported in this browser. Chrome or Edge is recommended.');
   if(window.__recognition) { try{window.__recognition.stop();}catch{} window.__recognition=null; }
   const recognition=new SR(); window.__recognition=recognition; recognition.lang='en-IN'; recognition.interimResults=true; recognition.continuous=false;
-  let finalText=''; window.__voiceListening=true; render();
+  let finalText=''; window.__agentDraft=''; window.__homeResponse=''; window.__voiceListening=true; render();
   recognition.onresult=(event)=>{let interim=''; for(let i=event.resultIndex;i<event.results.length;i++){const t=event.results[i][0].transcript;if(event.results[i].isFinal)finalText+=t;else interim+=t;} const el=document.getElementById(targetId); if(el) el.value=(finalText||interim).trim(); window.__agentDraft=(finalText||interim).trim();};
   recognition.onerror=(event)=>{window.__voiceListening=false; window.__recognition=null; toast(`Voice input: ${event.error}`); render();};
-  recognition.onend=()=>{window.__voiceListening=false; window.__recognition=null; const text=(finalText||window.__agentDraft||'').trim(); render(); if(text){window.__voiceInitiated=true; setTimeout(()=>askAi(text),250);}};
+  recognition.onend=()=>{window.__voiceListening=false; window.__recognition=null; const text=(finalText||window.__agentDraft||'').trim(); render(); if(text){window.__voiceInitiated=true; setTimeout(()=>askAi(text,{stayHome:true}),250);}};
   try{recognition.start();}catch(err){window.__voiceListening=false; toast(err.message);}
 }
 
@@ -344,34 +346,48 @@ async function waitForMoveworksResult(startedAt, requestId, timeoutMs=75000) {
   return null;
 }
 
-async function askAi(prompt) {
+async function askAi(prompt, options={}) {
   const clean=String(prompt||'').trim(); if(!clean) return toast('Enter a question first.');
-  window.__lastAiQuestion=clean; window.__agentPrompt=clean; window.__agentDraft=''; window.__agentLocalResult=null;
+  const stayHome=Boolean(options.stayHome);
+  window.__lastAiQuestion=clean; window.__agentPrompt=clean; window.__agentDraft=clean; window.__agentLocalResult=null;
 
-  // Fast local operational answers: counts and list requests should appear immediately.
+  const showHome=(text,busy=false)=>{
+    window.__homeResponse=text;
+    window.__homeBusy=busy;
+    state.page='agent';
+    state.aiBusy=busy;
+    render();
+  };
+
+  // Fast live answers such as counts remain on the home page for voice requests.
   const local=localOperationalResult(clean);
   if(local) {
     window.__agentLocalResult=local;
     window.__aiAnswer=local.answer;
-    state.page='results'; state.aiBusy=false; render();
+    state.aiBusy=false;
+    if(stayHome) showHome(local.answer,false);
+    else { state.page='results'; render(); }
     speakVoiceResponse(local.answer);
     return;
   }
 
-  state.page='results'; state.aiBusy=true; window.__aiAnswer=''; render();
+  if(stayHome) showHome(`You asked: “${clean}”`,true);
+  else { state.page='results'; state.aiBusy=true; window.__aiAnswer=''; render(); }
+
   let finalAnswer='';
   try {
     const result=await api('/api/ai/query',{method:'POST',body:JSON.stringify({prompt:clean})});
     if(result.mode==='webhook-trigger') {
-      window.__aiAnswer=result.answer||'Moveworks accepted the request. Waiting for the live callback…'; render();
+      const waiting=result.answer||'Moveworks accepted the request. I am checking the live governance data now.';
+      window.__aiAnswer=waiting;
+      if(stayHome) showHome(waiting,true); else render();
       const callback=await waitForMoveworksResult(result.startedAt,result.requestId);
       if(callback) {
         finalAnswer=resultSummary(callback,clean);
         window.__aiAnswer=finalAnswer;
         await refreshDashboard(false);
-        state.page='results';
       } else {
-        finalAnswer='Moveworks accepted the request and the workflow is still running. Please check the result page shortly.';
+        finalAnswer='Moveworks accepted the request and the workflow is still running. Please try again shortly.';
         window.__aiAnswer=finalAnswer;
       }
     } else {
@@ -382,7 +398,9 @@ async function askAi(prompt) {
     finalAnswer=`Unable to contact Moveworks AI: ${err.message}`;
     window.__aiAnswer=finalAnswer;
   } finally {
-    state.aiBusy=false; state.page='results'; render();
+    state.aiBusy=false;
+    if(stayHome) showHome(finalAnswer||window.__aiAnswer,false);
+    else { state.page='results'; render(); }
     speakVoiceResponse(finalAnswer||window.__aiAnswer);
   }
 }
@@ -395,7 +413,7 @@ function openAssign(ticketId) {
 
 async function handleAction(action,arg) {
   if(action==='refreshData'){await refreshDashboard(true);return;}
-  if(action==='agentAsk') return askAi(document.getElementById('agentPrompt')?.value||'');
+  if(action==='agentAsk') return askAi(document.getElementById('agentPrompt')?.value||'',{stayHome:false});
   if(action==='agentPrompt') return askAi(arg);
   if(action==='startVoice') return startVoice('agentPrompt');
   if(action==='startVoiceResult') return startVoice('resultPrompt');
