@@ -47,7 +47,7 @@ function liveBanner() {
 
 function layout(content) {
   const title = state.page==='results' ? 'AI Operations Result' : (nav.find(x => x[0] === state.page)?.[1] || 'Command Center');
-  return `<div class="shell"><aside class="sidebar">
+  return `<div class="shell ${state.page==='agent'?'agent-shell':''}"><aside class="sidebar">
     <div class="brand"><div class="brandmark">✦</div><div><strong>AI Governance</strong><span>Command Center</span></div></div>
     <div class="hackathon-badge">Moveworks Hackathon</div>
     <nav>${nav.map(([key,label,icon])=>`<button class="navbtn ${state.page===key?'active':''}" data-nav="${key}"><span>${icon}</span>${label}</button>`).join('')}</nav>
@@ -155,37 +155,52 @@ function localOperationalResult(prompt) {
 }
 
 function agentVisual() {
-  return `<div class="agent-portrait" aria-hidden="true">
-    <div class="agent-halo halo-one"></div><div class="agent-halo halo-two"></div>
-    <div class="agent-head"><div class="agent-face"><span></span><span></span><i></i></div></div>
-    <div class="agent-core"><b>AI</b></div>
-    <div class="agent-node n1"></div><div class="agent-node n2"></div><div class="agent-node n3"></div><div class="agent-node n4"></div>
+  return `<div class="hero-ai-stage" aria-label="3D AI Operations Agent">
+    <div class="hero-orbit orbit-a"></div><div class="hero-orbit orbit-b"></div><div class="hero-orbit orbit-c"></div>
+    <div class="hero-glow"></div>
+    <img class="hero-robot" src="/assets/ai-operations-robot.png?v=10.0.0" alt="3D AI Operations Agent" />
+    <div class="ai-speech"><strong>Hello! 👋</strong><span>I’m your AI Operations Agent.<br>How can I assist you today?</span></div>
   </div>`;
 }
 
 function renderAgent() {
   const speechSupported=Boolean(window.SpeechRecognition||window.webkitSpeechRecognition);
-  return layout(`<section class="agent-home">
-    <div class="agent-hero">
-      <div class="agent-copy"><span class="eyebrow">VOICE + CHAT OPERATIONS ASSISTANT</span><h2>Meet your AI Operations Agent</h2><p>Ask a question or speak naturally. The agent uses your existing Moveworks governance workflows and live ServiceNow results.</p>
-        <div class="system-pills"><span>● Moveworks</span><span>● ServiceNow</span><span class="muted-pill">Azure DevOps · next</span></div>
-      </div>${agentVisual()}
+  const metricCard=(icon,label,value,trend,tone)=>`<div class="hero-metric ${tone}"><span class="hero-metric-icon">${icon}</span><div><small>${label}</small><strong>${value}</strong><em>${trend}</em></div></div>`;
+  const quick=(icon,title,desc,prompt,tone)=>`<button class="home-quick ${tone}" data-action="agentPrompt" data-arg="${escapeHtml(prompt)}"><span class="quick-icon">${icon}</span><strong>${title}</strong><small>${desc}</small><b>→</b></button>`;
+  return layout(`<section class="agent-home-v10">
+    <div class="home-metrics">
+      ${metricCard('◇','CRITICAL SLA',state.slaCritical,'Immediate attention','red')}
+      ${metricCard('◷','BREACHED SLA',state.slaBreached,'Live SLA records','violet')}
+      ${metricCard('⌛','AGEING TICKETS',state.ageingTotal,'Governance backlog','amber')}
+      ${metricCard('✓','DEVOPS COMPLIANCE',state.devopsHygiene?state.devopsHygiene+'%':'—',state.devopsHygiene?'Live governance score':'Connector planned','blue')}
+      ${metricCard('☁','CLOUD SPEND (MTD)','—','Connector planned','green')}
     </div>
-    <div class="agent-prompt-card">
-      <label for="agentPrompt">What can I help you with?</label>
-      <div class="agent-prompt-row"><textarea id="agentPrompt" rows="2" placeholder="Ask about SLA breaches, at-risk tickets, ageing backlog or root cause analysis...">${escapeHtml(window.__agentDraft||'')}</textarea>
-        <button class="voice-btn ${window.__voiceListening?'listening':''}" data-action="startVoice" title="${speechSupported?'Speak to the AI agent':'Voice recognition is not supported in this browser'}" ${speechSupported?'':'disabled'}>🎤<span>${window.__voiceListening?'Listening…':'Speak'}</span></button>
-        <button class="send-btn" data-action="agentAsk">➜<span>Ask Agent</span></button>
+    <div class="agent-hero-v10">
+      <div class="hero-copy-v10">
+        <span class="eyebrow-v10">INTELLIGENT OPERATIONS ASSISTANT</span>
+        <h2>AI OPERATIONS<br><span>AGENT</span></h2>
+        <h3>Intelligent. Proactive. <b>Always On.</b></h3>
+        <p>Ask anything about incidents, SLA, DevOps, cloud cost, or governance. Your existing Moveworks and ServiceNow workflows stay connected.</p>
+        <div class="connected-label">CONNECTED SYSTEMS</div>
+        <div class="connected-grid"><span>◆ Moveworks</span><span>now ServiceNow</span><span>▰ Azure DevOps</span><span>△ Microsoft Azure</span></div>
       </div>
-      <div id="voiceStatus" class="voice-status">${speechSupported?'Voice is ready. Speak naturally or type your request.':'Voice input requires a browser with Web Speech Recognition (Chrome/Edge recommended).'}</div>
+      ${agentVisual()}
+      <div class="hero-command-bar">
+        <textarea id="agentPrompt" rows="1" placeholder="Ask about incidents, SLA, DevOps, cloud cost or anything...">${escapeHtml(window.__agentDraft||'')}</textarea>
+        <button class="command-mic ${window.__voiceListening?'listening':''}" data-action="startVoice" ${speechSupported?'':'disabled'} title="Voice command">🎙<span>${window.__voiceListening?'Listening':'Voice'}</span></button>
+        <button class="command-send" data-action="agentAsk" title="Analyze">➜<span>Analyze</span></button>
+      </div>
     </div>
-    <div class="quick-grid">
-      <button class="quick-action live-cap" data-action="agentPrompt" data-arg="How many SLA breaches do we have?"><strong>SLA breach count</strong><span>Immediate live KPI</span></button>
-      <button class="quick-action live-cap" data-action="agentPrompt" data-arg="Show me all breached SLA tickets"><strong>Breached SLA tickets</strong><span>Count + ticket numbers when returned</span></button>
-      <button class="quick-action live-cap" data-action="agentPrompt" data-arg="Why are our SLA tickets breaching?"><strong>AI breach analysis</strong><span>Moveworks RCA + recommendations</span></button>
-      <button class="quick-action live-cap" data-action="agentPrompt" data-arg="Show me ageing tickets"><strong>Ageing tickets</strong><span>Live governance backlog</span></button>
+    <div class="quick-title"><span>QUICK ACTIONS</span></div>
+    <div class="quick-grid-v10">
+      ${quick('⚠','SLA breach count','View all breached SLA tickets','Show me all breached SLA tickets','red')}
+      ${quick('◷','At Risk SLA','View at-risk SLA tickets','Show me all at risk SLA tickets','violet')}
+      ${quick('◇','Incidents','Search and analyze incidents','Show me all incidents','amber')}
+      ${quick('▰','DevOps Stories','Search user stories and tasks','Show me DevOps user stories','blue')}
+      ${quick('▤','Knowledge Base','Search KB articles','Find a knowledge base article','green')}
+      ${quick('☁','Cloud Cost','Analyze cloud cost and usage','Show cloud cost details','cyan')}
+      <button class="home-quick indigo" data-nav="command"><span class="quick-icon">▥</span><strong>Executive Dashboard</strong><small>Open full command center</small><b>→</b></button>
     </div>
-    <div class="roadmap-strip"><span><b>Next connectors:</b></span><span>Azure DevOps user stories</span><span>Knowledge Base search</span><span>Cloud cost</span><span>Ticket close with approval</span></div>
   </section>`);
 }
 
