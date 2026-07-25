@@ -11,7 +11,7 @@ const state = {
 
 const nav = [
   ['agent','AI Operations Agent','✦'], ['command','Command Center','⌂'], ['ageing','Ageing Tickets','◷'], ['sla','SLA Intelligence','✓'],
-  ['devops','DevOps Governance','▣'], ['ai','Ask Governance AI','◈']
+  ['devops','DevOps Governance','▣'], ['ai','Ask Governance AI','◈'], ['presentation','Presentation Mode','▶']
 ];
 
 const app = document.getElementById('app');
@@ -185,7 +185,7 @@ function renderAgent() {
     <main class="v11-main">
       <header class="v11-topbar">
         <div class="v11-brand"><div class="v11-brand-icon">✦</div><div><strong>AI Operations Agent</strong><small>Intelligent operations assistant</small></div></div>
-        <div class="v11-top-actions"><span class="v11-connected">● Systems connected</span><button data-nav="command">Open Command Center ↗</button><button class="v11-bell">♧</button></div>
+        <div class="v11-top-actions"><span class="v11-connected">● Systems connected</span><button class="v12-present-btn" data-action="openPresentation">Present PPT ▶</button><button data-nav="command">Open Command Center ↗</button><button class="v11-bell">♧</button></div>
       </header>
 
       <section class="v11-stage">
@@ -194,7 +194,7 @@ function renderAgent() {
 
         <div class="v11-visual" aria-label="3D AI operations robot">
           <div class="v11-visual-glow"></div>
-          <img src="/ai-agent-center.png?v=11.8.0" alt="Full-body 3D AI robot standing before a glowing digital globe">
+          <img src="/ai-agent-center.png?v=12.0.0" alt="Full-body 3D AI robot standing before a glowing digital globe">
         </div>
 
         <aside class="v11-response ${state.aiBusy?'busy':''} ${(answer||state.aiBusy||speaking)?'has-content':''}">
@@ -217,6 +217,406 @@ function renderAgent() {
     </main>
   </div>`;
 }
+
+
+/* =========================================================
+   V12 PRESENTATION MODE
+   PowerPoint files are processed locally in the browser.
+   No deck content is uploaded to this Node.js application.
+   ========================================================= */
+window.__presentationDeck = window.__presentationDeck || null;
+window.__presentationState = window.__presentationState || {
+  current: 0,
+  active: false,
+  paused: false,
+  autoAdvance: true,
+  narration: '',
+  listening: false,
+  status: 'Upload a PowerPoint deck to begin.'
+};
+
+function decodeXml(value='') {
+  const el=document.createElement('textarea');
+  el.innerHTML=String(value);
+  return el.value.replace(/\s+/g,' ').trim();
+}
+
+function zipResolve(baseFile, target) {
+  if(!target) return '';
+  if(target.startsWith('/')) return target.slice(1);
+  const parts=baseFile.split('/'); parts.pop();
+  for(const p of target.split('/')) {
+    if(!p || p==='.') continue;
+    if(p==='..') parts.pop(); else parts.push(p);
+  }
+  return parts.join('/');
+}
+
+function pptParagraphs(xml='') {
+  const blocks=String(xml).match(/<a:p(?:\s[^>]*)?>[\s\S]*?<\/a:p>/g) || [];
+  const out=[];
+  for(const block of blocks) {
+    const parts=[...block.matchAll(/<a:t(?:\s[^>]*)?>([\s\S]*?)<\/a:t>/g)]
+      .map(m=>decodeXml(m[1])).filter(Boolean);
+    const text=parts.join(' ').replace(/\s+/g,' ').trim();
+    if(text && !out.includes(text)) out.push(text);
+  }
+  if(out.length) return out;
+  return [...String(xml).matchAll(/<a:t(?:\s[^>]*)?>([\s\S]*?)<\/a:t>/g)]
+    .map(m=>decodeXml(m[1])).filter((x,i,a)=>x && a.indexOf(x)===i);
+}
+
+async function slidePrimaryImage(zip, slidePath, slideXml) {
+  try {
+    const rid=slideXml.match(/r:embed="([^"]+)"/)?.[1];
+    if(!rid) return '';
+    const n=slidePath.match(/slide(\d+)\.xml$/)?.[1];
+    if(!n) return '';
+    const relPath=`ppt/slides/_rels/slide${n}.xml.rels`;
+    const relFile=zip.file(relPath);
+    if(!relFile) return '';
+    const relXml=await relFile.async('text');
+    const doc=new DOMParser().parseFromString(relXml,'application/xml');
+    const rel=[...doc.getElementsByTagName('Relationship')].find(x=>x.getAttribute('Id')===rid);
+    if(!rel) return '';
+    const mediaPath=zipResolve(slidePath,rel.getAttribute('Target')||'');
+    const media=zip.file(mediaPath);
+    if(!media) return '';
+    const blob=await media.async('blob');
+    return URL.createObjectURL(blob);
+  } catch {
+    return '';
+  }
+}
+
+async function parsePptxFile(file) {
+  if(!window.JSZip) throw new Error('PowerPoint parser failed to load.');
+  if(!file || !/\.pptx$/i.test(file.name)) throw new Error('Please select a .pptx PowerPoint file.');
+  if(file.size > 35*1024*1024) throw new Error('For this MVP, please keep the PowerPoint below 35 MB.');
+
+  const old=window.__presentationDeck;
+  if(old?.slides) old.slides.forEach(s=>{if(s.imageUrl) try{URL.revokeObjectURL(s.imageUrl);}catch{}});
+
+  const zip=await JSZip.loadAsync(await file.arrayBuffer());
+  const slidePaths=Object.keys(zip.files)
+    .filter(x=>/^ppt\/slides\/slide\d+\.xml$/i.test(x))
+    .sort((a,b)=>Number(a.match(/slide(\d+)/i)?.[1]||0)-Number(b.match(/slide(\d+)/i)?.[1]||0));
+
+  if(!slidePaths.length) throw new Error('No slides were found in this PowerPoint.');
+
+  const slides=[];
+  for(let i=0;i<slidePaths.length;i++) {
+    const path=slidePaths[i];
+    const xml=await zip.file(path).async('text');
+    const paragraphs=pptParagraphs(xml).filter(x=>!/^\d+$/.test(x));
+    const slideNo=Number(path.match(/slide(\d+)/i)?.[1]||i+1);
+
+    let notes=[];
+    const notePath=`ppt/notesSlides/notesSlide${slideNo}.xml`;
+    if(zip.file(notePath)) {
+      try {
+        notes=pptParagraphs(await zip.file(notePath).async('text'))
+          .filter(x=>x && !/^\d+$/.test(x) && !/^slide\s*\d*$/i.test(x));
+      } catch {}
+    }
+
+    const title=paragraphs[0] || `Slide ${i+1}`;
+    const body=paragraphs.slice(1);
+    const imageUrl=await slidePrimaryImage(zip,path,xml);
+    slides.push({
+      number:i+1,
+      title,
+      body,
+      notes:notes.join(' ').trim(),
+      imageUrl
+    });
+  }
+
+  return {
+    name:file.name.replace(/\.pptx$/i,''),
+    fileName:file.name,
+    loadedAt:new Date(),
+    slides
+  };
+}
+
+function presentationNarration(slide, detailed=false) {
+  if(!slide) return '';
+  const notes=String(slide.notes||'').replace(/\s+/g,' ').trim();
+  if(notes.length>35 && !detailed) return notes;
+
+  const points=(slide.body||[]).filter(Boolean);
+  if(!points.length) return `This slide is titled ${slide.title}. Let me briefly explain the main idea shown here.`;
+
+  const visible=points.slice(0,detailed?8:5);
+  const intro=`This slide is about ${slide.title}.`;
+  const body=detailed
+    ? ` Let me explain the main points in more detail. ${visible.map((p,i)=>`Point ${i+1}: ${p}.`).join(' ')}`
+    : ` The key points are ${visible.map((p,i)=>`${i+1}, ${p}`).join('; ')}.`;
+
+  return `${intro}${body}`;
+}
+
+function presentationSummary(slide) {
+  if(!slide) return '';
+  const points=(slide.body||[]).slice(0,4);
+  return points.length
+    ? `In summary, ${slide.title} focuses on ${points.join('; ')}.`
+    : `In summary, this slide focuses on ${slide.title}.`;
+}
+
+function renderPresentationSlide(slide) {
+  if(!slide) return '';
+  const bullets=(slide.body||[]).slice(0,9);
+  return `<article class="v12-slide-card">
+    <div class="v12-slide-label">SLIDE ${slide.number}</div>
+    <h1>${escapeHtml(slide.title)}</h1>
+    ${slide.imageUrl?`<img class="v12-slide-image" src="${slide.imageUrl}" alt="">`:''}
+    ${bullets.length?`<ul>${bullets.map(x=>`<li>${escapeHtml(x)}</li>`).join('')}</ul>`:`<p class="v12-slide-empty">This slide contains primarily visual content. The presenter can still use its title and speaker notes.</p>`}
+  </article>`;
+}
+
+function renderPresentation() {
+  const deck=window.__presentationDeck;
+  const ps=window.__presentationState;
+  const slide=deck?.slides?.[ps.current] || null;
+  const speechSupported=Boolean(window.SpeechRecognition||window.webkitSpeechRecognition);
+
+  return `<div class="v12-presentation">
+    <header class="v12-present-top">
+      <div>
+        <button class="v12-back" data-action="closePresentation">← AI Agent</button>
+        <div><strong>AI Presentation Mode</strong><small>${deck?escapeHtml(deck.fileName):'Dynamic PowerPoint presenter'}</small></div>
+      </div>
+      <div class="v12-present-top-actions">
+        ${deck?`<span>${ps.current+1} / ${deck.slides.length}</span>`:''}
+        <button data-action="uploadPresentation">${deck?'Change PPT':'Upload PPTX'}</button>
+      </div>
+    </header>
+
+    ${!deck?`
+      <main class="v12-upload-view">
+        <div class="v12-upload-robot"><img src="/ai-agent-center.png?v=12.0.0" alt="AI Operations Agent"></div>
+        <section class="v12-upload-card">
+          <span class="eyebrow">AI PRESENTER</span>
+          <h1>Let your AI Operations Agent present any PowerPoint.</h1>
+          <p>Upload a <strong>.pptx</strong> file. The deck is processed locally in your browser, so you can replace it whenever your presentation changes.</p>
+          <button class="btn primary v12-upload-main" data-action="uploadPresentation">Upload PowerPoint</button>
+          <div class="v12-upload-note">After loading: say or type <strong>“Start presentation”</strong>.</div>
+        </section>
+      </main>
+    `:`
+      <main class="v12-present-stage">
+        <section class="v12-slide-area">
+          ${renderPresentationSlide(slide)}
+        </section>
+
+        <aside class="v12-presenter-panel">
+          <div class="v12-presenter-robot"><img src="/ai-agent-center.png?v=12.0.0" alt="AI presenter"></div>
+          <div class="v12-presenter-status">
+            <strong>🤖 AI Operations Agent</strong>
+            <span>${ps.active?(ps.paused?'Paused':'Presenting…'):'Ready to present'}</span>
+            <div class="v11-wave ${ps.active&&!ps.paused?'active':''}">${Array.from({length:43},(_,i)=>`<i style="--i:${i}"></i>`).join('')}</div>
+            <p>${escapeHtml(ps.narration || 'Say “start presentation” or press Start.')}</p>
+          </div>
+        </aside>
+
+        <div class="v12-controls">
+          <button data-action="previousSlide">← Previous</button>
+          <button class="primary" data-action="${ps.active?'pausePresentation':'startPresentation'}">${ps.active?(ps.paused?'▶ Resume':'⏸ Pause'):'▶ Start'}</button>
+          <button data-action="nextSlide">Next →</button>
+          <button data-action="stopPresentation">■ Stop</button>
+          <button class="${ps.autoAdvance?'active':''}" data-action="togglePresentationMode">${ps.autoAdvance?'Auto advance':'Interactive'}</button>
+          <button class="v12-mic ${ps.listening?'listening':''}" data-action="presentationVoice" ${speechSupported?'':'disabled'}>🎤</button>
+        </div>
+
+        <div class="v12-commandbar">
+          <input id="presentationCommand" placeholder='Try: "next slide", "explain this slide", "pause", "continue"...'>
+          <button data-action="presentationCommand">Send</button>
+        </div>
+      </main>
+    `}
+    <input id="pptxUpload" type="file" accept=".pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation" hidden>
+  </div>`;
+}
+
+function presentationSpeak(text, onEnd) {
+  if(!('speechSynthesis' in window) || !text) {
+    if(onEnd) onEnd();
+    return;
+  }
+  stopSpeech();
+  const clean=String(text).replace(/\*\*/g,'').replace(/[#*_`]/g,' ').replace(/\s+/g,' ').trim();
+  const utter=new SpeechSynthesisUtterance(clean);
+  utter.lang='en-IN';
+  utter.rate=0.94;
+  utter.pitch=1;
+  utter.onstart=()=>{
+    window.__voiceSpeaking=true;
+    window.__presentationState.paused=false;
+    render();
+  };
+  utter.onend=()=>{
+    window.__voiceSpeaking=false;
+    window.__presentationState.paused=false;
+    render();
+    if(onEnd) onEnd();
+  };
+  utter.onerror=()=>{
+    window.__voiceSpeaking=false;
+    window.__presentationState.paused=false;
+    render();
+  };
+  window.__currentUtterance=utter;
+  window.speechSynthesis.speak(utter);
+}
+
+function presentCurrentSlide({detailed=false, summary=false}={}) {
+  const deck=window.__presentationDeck;
+  const ps=window.__presentationState;
+  const slide=deck?.slides?.[ps.current];
+  if(!slide) return;
+  const narration=summary?presentationSummary(slide):presentationNarration(slide,detailed);
+  ps.narration=narration;
+  ps.active=true;
+  ps.paused=false;
+  state.page='presentation';
+  render();
+
+  presentationSpeak(narration,()=>{
+    if(!ps.active || ps.paused) return;
+    if(ps.autoAdvance && ps.current < deck.slides.length-1 && !detailed && !summary) {
+      setTimeout(()=>{
+        if(!ps.active) return;
+        ps.current += 1;
+        presentCurrentSlide();
+      },700);
+    } else if(ps.autoAdvance && ps.current === deck.slides.length-1 && !detailed && !summary) {
+      ps.active=false;
+      ps.narration='That concludes the presentation. Thank you. I am ready for questions.';
+      render();
+      presentationSpeak(ps.narration);
+    } else {
+      ps.active=false;
+      render();
+    }
+  });
+}
+
+function startPresentation() {
+  const deck=window.__presentationDeck;
+  if(!deck?.slides?.length) return toast('Upload a PowerPoint first.');
+  const ps=window.__presentationState;
+  if(ps.paused && window.speechSynthesis?.paused) {
+    window.speechSynthesis.resume();
+    ps.paused=false; ps.active=true; render(); return;
+  }
+  if(ps.current>=deck.slides.length) ps.current=0;
+  presentCurrentSlide();
+}
+
+function stopPresentation(reset=false) {
+  stopSpeech();
+  const ps=window.__presentationState;
+  ps.active=false; ps.paused=false;
+  if(reset) ps.current=0;
+  render();
+}
+
+function nextPresentationSlide(speak=true) {
+  const deck=window.__presentationDeck;
+  if(!deck?.slides?.length) return;
+  stopSpeech();
+  const ps=window.__presentationState;
+  ps.current=Math.min(deck.slides.length-1,ps.current+1);
+  ps.active=false; ps.paused=false;
+  ps.narration='';
+  render();
+  if(speak) setTimeout(()=>presentCurrentSlide(),120);
+}
+
+function previousPresentationSlide(speak=true) {
+  const deck=window.__presentationDeck;
+  if(!deck?.slides?.length) return;
+  stopSpeech();
+  const ps=window.__presentationState;
+  ps.current=Math.max(0,ps.current-1);
+  ps.active=false; ps.paused=false;
+  ps.narration='';
+  render();
+  if(speak) setTimeout(()=>presentCurrentSlide(),120);
+}
+
+function handlePresentationCommand(command='') {
+  const q=String(command).toLowerCase().trim();
+  if(!q) return;
+  const ps=window.__presentationState;
+
+  if(/\b(next|next slide|move on|continue to next)\b/.test(q)) return nextPresentationSlide(true);
+  if(/\b(previous|previous slide|back|go back)\b/.test(q)) return previousPresentationSlide(true);
+  if(/\b(pause|hold)\b/.test(q)) {
+    if(window.speechSynthesis?.speaking) window.speechSynthesis.pause();
+    ps.paused=true; ps.active=true; render(); return;
+  }
+  if(/\b(resume|continue|carry on)\b/.test(q)) {
+    if(window.speechSynthesis?.paused) {
+      window.speechSynthesis.resume(); ps.paused=false; ps.active=true; render();
+    } else startPresentation();
+    return;
+  }
+  if(/\b(stop|end presentation|finish presentation)\b/.test(q)) return stopPresentation(false);
+  if(/\b(restart|start over|from beginning)\b/.test(q)) {
+    ps.current=0; ps.active=false; ps.narration=''; return startPresentation();
+  }
+  if(/\b(start|begin|present|presentation)\b/.test(q)) return startPresentation();
+  if(/\b(explain|detail|more detail)\b/.test(q)) return presentCurrentSlide({detailed:true});
+  if(/\b(summary|summarize|summarise)\b/.test(q)) return presentCurrentSlide({summary:true});
+
+  const slide=window.__presentationDeck?.slides?.[ps.current];
+  if(slide) {
+    ps.narration=`On the current slide, ${presentationNarration(slide,true)}`;
+    render();
+    presentationSpeak(ps.narration);
+  }
+}
+
+function startPresentationVoice() {
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR) return toast('Voice recognition is not supported in this browser.');
+  stopSpeech();
+  const ps=window.__presentationState;
+  const recognition=new SR();
+  recognition.lang='en-IN';
+  recognition.interimResults=false;
+  recognition.continuous=false;
+  ps.listening=true; render();
+  recognition.onresult=e=>{
+    const text=e.results?.[0]?.[0]?.transcript||'';
+    ps.listening=false; render();
+    if(text) handlePresentationCommand(text);
+  };
+  recognition.onerror=e=>{ps.listening=false;render();toast(`Voice input: ${e.error}`);};
+  recognition.onend=()=>{ps.listening=false;render();};
+  try{recognition.start();}catch(err){ps.listening=false;render();toast(err.message);}
+}
+
+async function loadPresentationFile(file) {
+  const ps=window.__presentationState;
+  ps.status='Reading PowerPoint…';
+  state.page='presentation'; render();
+  try {
+    const deck=await parsePptxFile(file);
+    window.__presentationDeck=deck;
+    ps.current=0; ps.active=false; ps.paused=false; ps.autoAdvance=true; ps.narration=`${deck.name} is ready. I found ${deck.slides.length} slides. Say “start presentation” when you are ready.`;
+    render();
+    presentationSpeak(ps.narration);
+  } catch(err) {
+    ps.narration='';
+    toast(err.message);
+    render();
+  }
+}
+
 
 function resultTicketTable(rows=[]) {
   if(!rows.length) return `<div class="result-note">Individual ticket records are not included in the current callback yet. The MVP is ready to render ticket numbers automatically once the Moveworks callback includes the records.</div>`;
@@ -273,7 +673,7 @@ function readAloud() {
 }
 
 function render() {
-  if(state.page==='agent') app.innerHTML=renderAgent(); else if(state.page==='results') app.innerHTML=renderResults(); else if(state.page==='ageing') app.innerHTML=renderAgeing(); else if(state.page==='sla') app.innerHTML=renderSla(); else if(state.page==='devops') app.innerHTML=renderDevops(); else if(state.page==='ai') app.innerHTML=renderAi(window.__aiAnswer||''); else app.innerHTML=renderCommand();
+  if(state.page==='agent') app.innerHTML=renderAgent(); else if(state.page==='presentation') app.innerHTML=renderPresentation(); else if(state.page==='results') app.innerHTML=renderResults(); else if(state.page==='ageing') app.innerHTML=renderAgeing(); else if(state.page==='sla') app.innerHTML=renderSla(); else if(state.page==='devops') app.innerHTML=renderDevops(); else if(state.page==='ai') app.innerHTML=renderAi(window.__aiAnswer||''); else app.innerHTML=renderCommand();
 }
 
 async function api(path, options={}) {
@@ -364,6 +764,18 @@ async function waitForMoveworksResult(startedAt, requestId, timeoutMs=75000) {
 
 async function askAiHome(prompt, autoSpeak=true) {
   const clean=String(prompt||'').trim(); if(!clean) return toast('Enter or speak a question first.');
+  if(/\b(present|presentation|powerpoint|ppt|slide deck|start presentation)\b/i.test(clean)) {
+    state.page='presentation';
+    render();
+    if(window.__presentationDeck?.slides?.length) {
+      setTimeout(()=>startPresentation(),150);
+    } else {
+      window.__presentationState.narration='Presentation Mode is ready. Upload a PowerPoint file, then say “start presentation”.';
+      render();
+      if(autoSpeak) setTimeout(()=>presentationSpeak(window.__presentationState.narration),200);
+    }
+    return;
+  }
   window.__lastAiQuestion=clean; window.__agentPrompt=clean; window.__agentDraft=clean; window.__homeAiAnswer=''; state.aiBusy=true; state.page='agent'; render();
   try {
     const local=localOperationalResult(clean);
@@ -418,6 +830,16 @@ function openAssign(ticketId) {
 }
 
 async function handleAction(action,arg) {
+  if(action==='openPresentation'){state.page='presentation';render();return;}
+  if(action==='closePresentation'){stopPresentation(false);state.page='agent';render();return;}
+  if(action==='uploadPresentation'){document.getElementById('pptxUpload')?.click();return;}
+  if(action==='startPresentation') return startPresentation();
+  if(action==='stopPresentation'){stopPresentation(false);return;}
+  if(action==='nextSlide') return nextPresentationSlide(false);
+  if(action==='previousSlide') return previousPresentationSlide(false);
+  if(action==='togglePresentationMode'){window.__presentationState.autoAdvance=!window.__presentationState.autoAdvance;render();return;}
+  if(action==='presentationVoice') return startPresentationVoice();
+  if(action==='presentationCommand') return handlePresentationCommand(document.getElementById('presentationCommand')?.value||'');
   if(action==='refreshData'){await refreshDashboard(true);return;}
   if(action==='agentAsk') return askAiHome(document.getElementById('agentPrompt')?.value||'',true);
   if(action==='agentPrompt') return askAiHome(arg,true);
@@ -426,6 +848,12 @@ async function handleAction(action,arg) {
   if(action==='resultAsk') return askAi(document.getElementById('resultPrompt')?.value||'');
   if(action==='backAgent'){state.page='agent';window.__aiAnswer='';window.__agentLocalResult=null;render();return;}
   if(action==='readAloud') return readAloud();
+  if(action==='pausePresentation'){
+    const ps=window.__presentationState;
+    if(window.speechSynthesis?.paused){window.speechSynthesis.resume();ps.paused=false;ps.active=true;}
+    else {window.speechSynthesis?.pause();ps.paused=true;ps.active=true;}
+    render();return;
+  }
   if(action==='stopSpeech'){stopSpeech();render();return;}
   if(action==='pauseSpeech'){pauseSpeech();return;}
   if(action==='closeHomeResponse'){stopSpeech();window.__homeAiAnswer='';render();return;}
@@ -444,7 +872,11 @@ async function handleAction(action,arg) {
 
 document.addEventListener('click',e=>{const navEl=e.target.closest('[data-nav]');if(navEl){state.page=navEl.dataset.nav;render();return;}const actionEl=e.target.closest('[data-action]');if(actionEl)handleAction(actionEl.dataset.action,actionEl.dataset.arg||'');});
 document.addEventListener('input',e=>{if(e.target.id==='ticketSearch'){state.search=e.target.value;render();const el=document.getElementById('ticketSearch');if(el){el.focus();el.setSelectionRange(state.search.length,state.search.length);}} if(e.target.id==='agentPrompt') window.__agentDraft=e.target.value;});
-document.addEventListener('keydown',e=>{if((e.target.id==='agentPrompt'||e.target.id==='resultPrompt')&&e.key==='Enter'&&!e.shiftKey){e.preventDefault();askAi(e.target.value);}});
+document.addEventListener('change',e=>{if(e.target.id==='pptxUpload'&&e.target.files?.[0]) loadPresentationFile(e.target.files[0]);});
+document.addEventListener('keydown',e=>{
+  if((e.target.id==='agentPrompt'||e.target.id==='resultPrompt')&&e.key==='Enter'&&!e.shiftKey){e.preventDefault(); if(e.target.id==='agentPrompt') askAiHome(e.target.value,true); else askAi(e.target.value);}
+  if(e.target.id==='presentationCommand'&&e.key==='Enter'){e.preventDefault();handlePresentationCommand(e.target.value);}
+});
 
 setInterval(()=>refreshDashboard(false),5*60*1000);
 render(); refreshDashboard(false);

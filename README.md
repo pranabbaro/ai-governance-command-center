@@ -66,3 +66,16 @@ Use Microsoft Edge or Google Chrome and allow microphone access.
 - Voice/text prompt is fixed above the mobile safe area.
 - 16px prompt input prevents iOS Safari auto-zoom.
 - Existing automatic voice response for typed and spoken prompts is preserved.
+
+
+## V12.0 — AI Presentation Mode
+- Keeps the approved V11.8 desktop/mobile AI Operations Agent experience.
+- Adds dynamic PowerPoint (.pptx) Presentation Mode.
+- PPTX content is parsed locally in the browser; deck content is not uploaded to the Node.js backend.
+- A new PowerPoint can be selected at any time without code changes or redeployment.
+- The agent presents each slide using browser text-to-speech.
+- Speaker notes are used when available; otherwise narration is created from the slide title and key text.
+- Auto Advance and Interactive modes are supported.
+- Voice/typed presentation commands: start, pause, continue, next slide, previous slide, stop, explain this slide, summarize this slide, restart.
+- Existing Moveworks, ServiceNow, governance dashboards, automatic voice response, and mobile behavior are retained.
+- MVP limitation: the browser reconstructs slide content from PowerPoint text and the first referenced image; it does not reproduce every PowerPoint shape/animation with pixel-perfect fidelity.
