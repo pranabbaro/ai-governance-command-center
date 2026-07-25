@@ -185,7 +185,7 @@ function renderAgent() {
       </header>
       <section class="v104-stage">
         <div class="v104-greeting"><span>Hello! 👋</span><h1>I’m your<br>AI Operations Agent.</h1><p>How can I assist you today?</p></div>
-        <div class="v104-image-wrap"><div class="v104-halo"></div><img src="/ai-agent-center.png?v=10.4.0" alt="Full-body 3D AI Operations Agent"></div>
+        <div class="v104-image-wrap"><div class="v104-halo"></div><img src="/ai-agent-center.png?v=10.5.0" alt="Full-body 3D AI Operations Agent"></div>
         <div class="v104-prompt-wrap">
           <button class="v104-mic ${window.__voiceListening?'listening':''}" data-action="startVoice" ${speechSupported?'':'disabled'} title="${speechSupported?'Speak to the AI agent':'Use Chrome or Edge for voice input'}">${window.__voiceListening?'◉':'🎤'}</button>
           <input id="agentPrompt" value="${escapeHtml(window.__agentDraft||'')}" placeholder="Ask about incidents, SLA, DevOps, cloud cost or anything...">

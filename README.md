@@ -26,4 +26,4 @@ git push origin main
 
 After Azure App Service deploys, hard refresh with `Ctrl + Shift + R`.
 
-Verify `/health` returns version `10.4.0`.
+Verify `/health` returns version `10.5.0`.
