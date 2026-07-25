@@ -91,3 +91,12 @@ Use Microsoft Edge or Google Chrome and allow microphone access.
 - “What is your purpose?” returns the product-purpose response.
 - Identity responses display in the existing AI response panel and are spoken automatically using the existing text-to-speech and 43-bar waveform.
 - These identity requests are answered locally and do not call Moveworks, which keeps the wording consistent and the response immediate.
+
+
+## V12.2 — Preserve Original PowerPoint Formatting
+- Upload PPTX for narration, slide text and speaker notes.
+- Attach a PDF export of the same deck for the original visual formatting.
+- When PDF is attached, the presenter displays the PDF page for each slide while narration continues from the PPTX.
+- Next, Previous and Auto Advance keep PPTX slide number and PDF page number aligned.
+- New PPTX/PDF pairs can be loaded without redeploying the application.
+- Without a PDF, the existing reconstructed HTML preview remains available.

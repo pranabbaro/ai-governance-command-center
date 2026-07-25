@@ -194,7 +194,7 @@ function renderAgent() {
 
         <div class="v11-visual" aria-label="3D AI operations robot">
           <div class="v11-visual-glow"></div>
-          <img src="/ai-agent-center.png?v=12.1.0" alt="Full-body 3D AI robot standing before a glowing digital globe">
+          <img src="/ai-agent-center.png?v=12.2.0" alt="Full-body 3D AI robot standing before a glowing digital globe">
         </div>
 
         <aside class="v11-response ${state.aiBusy?'busy':''} ${(answer||state.aiBusy||speaking)?'has-content':''}">
@@ -433,8 +433,26 @@ async function parsePptxFile(file) {
     name:file.name.replace(/\.pptx$/i,''),
     fileName:file.name,
     loadedAt:new Date(),
-    slides
+    slides,
+    pdfFileName: '',
+    pdfUrl: ''
   };
+}
+
+function attachPresentationPdf(file) {
+  if(!file || !/\.pdf$/i.test(file.name)) throw new Error('Please select a PDF file.');
+  const deck=window.__presentationDeck;
+  if(!deck) throw new Error('Upload the PowerPoint first so narration can be mapped to the slides.');
+  if(deck.pdfUrl) { try { URL.revokeObjectURL(deck.pdfUrl); } catch {} }
+  deck.pdfFileName=file.name;
+  deck.pdfUrl=URL.createObjectURL(file);
+  window.__presentationState.narration='Original slide visuals attached. I will use the PDF for display and the PowerPoint content and speaker notes for narration.';
+  render();
+  presentationSpeak(window.__presentationState.narration);
+}
+
+function presentationPdfPageUrl(deck,pageNumber) {
+  return deck?.pdfUrl ? `${deck.pdfUrl}#page=${Math.max(1,pageNumber)}&zoom=page-fit&toolbar=0&navpanes=0&scrollbar=0` : '';
 }
 
 function presentationNarration(slide, detailed=false) {
@@ -464,12 +482,20 @@ function presentationSummary(slide) {
 
 function renderPresentationSlide(slide) {
   if(!slide) return '';
+  const deck=window.__presentationDeck;
+  if(deck?.pdfUrl) {
+    return `<article class="v12-slide-card v122-pdf-slide">
+      <div class="v12-slide-label">SLIDE ${slide.number} · ORIGINAL PDF VISUAL</div>
+      <iframe class="v122-pdf-frame" title="Slide ${slide.number}: ${escapeHtml(slide.title)}"
+        src="${presentationPdfPageUrl(deck,slide.number)}"></iframe>
+    </article>`;
+  }
   const bullets=(slide.body||[]).slice(0,9);
   return `<article class="v12-slide-card">
-    <div class="v12-slide-label">SLIDE ${slide.number}</div>
+    <div class="v12-slide-label">SLIDE ${slide.number} · RECONSTRUCTED PREVIEW</div>
     <h1>${escapeHtml(slide.title)}</h1>
     ${slide.imageUrl?`<img class="v12-slide-image" src="${slide.imageUrl}" alt="">`:''}
-    ${bullets.length?`<ul>${bullets.map(x=>`<li>${escapeHtml(x)}</li>`).join('')}</ul>`:`<p class="v12-slide-empty">This slide contains primarily visual content. The presenter can still use its title and speaker notes.</p>`}
+    ${bullets.length?`<ul>${bullets.map(x=>`<li>${escapeHtml(x)}</li>`).join('')}</ul>`:`<p class="v12-slide-empty">This slide contains primarily visual content.</p>`}
   </article>`;
 }
 
@@ -488,18 +514,19 @@ function renderPresentation() {
       <div class="v12-present-top-actions">
         ${deck?`<span>${ps.current+1} / ${deck.slides.length}</span>`:''}
         <button data-action="uploadPresentation">${deck?'Change PPT':'Upload PPTX'}</button>
+        ${deck?`<button class="${deck.pdfUrl?'v122-attached':''}" data-action="uploadPresentationPdf">${deck.pdfUrl?'PDF Attached ✓':'Attach Original PDF'}</button>`:''}
       </div>
     </header>
 
     ${!deck?`
       <main class="v12-upload-view">
-        <div class="v12-upload-robot"><img src="/ai-agent-center.png?v=12.1.0" alt="AI Operations Agent"></div>
+        <div class="v12-upload-robot"><img src="/ai-agent-center.png?v=12.2.0" alt="AI Operations Agent"></div>
         <section class="v12-upload-card">
           <span class="eyebrow">AI PRESENTER</span>
           <h1>Let your AI Operations Agent present any PowerPoint.</h1>
-          <p>Upload a <strong>.pptx</strong> file. The deck is processed locally in your browser, so you can replace it whenever your presentation changes.</p>
-          <button class="btn primary v12-upload-main" data-action="uploadPresentation">Upload PowerPoint</button>
-          <div class="v12-upload-note">After loading: say or type <strong>“Start presentation”</strong>.</div>
+          <p>Upload the <strong>.pptx</strong> so I can read slide text and speaker notes. Then attach a <strong>PDF export of the same deck</strong> so your original formatting is preserved.</p>
+          <button class="btn primary v12-upload-main" data-action="uploadPresentation">1. Upload PowerPoint</button>
+          <div class="v12-upload-note">After the PowerPoint loads, use <strong>Attach Original PDF</strong>. Then say or type <strong>“Start presentation”</strong>.</div>
         </section>
       </main>
     `:`
@@ -509,7 +536,7 @@ function renderPresentation() {
         </section>
 
         <aside class="v12-presenter-panel">
-          <div class="v12-presenter-robot"><img src="/ai-agent-center.png?v=12.1.0" alt="AI presenter"></div>
+          <div class="v12-presenter-robot"><img src="/ai-agent-center.png?v=12.2.0" alt="AI presenter"></div>
           <div class="v12-presenter-status">
             <strong>🤖 AI Operations Agent</strong>
             <span>${ps.active?(ps.paused?'Paused':'Presenting…'):'Ready to present'}</span>
@@ -534,6 +561,7 @@ function renderPresentation() {
       </main>
     `}
     <input id="pptxUpload" type="file" accept=".pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation" hidden>
+    <input id="pdfPresentationUpload" type="file" accept=".pdf,application/pdf" hidden>
   </div>`;
 }
 
@@ -704,7 +732,7 @@ async function loadPresentationFile(file) {
   try {
     const deck=await parsePptxFile(file);
     window.__presentationDeck=deck;
-    ps.current=0; ps.active=false; ps.paused=false; ps.autoAdvance=true; ps.narration=`${deck.name} is ready. I found ${deck.slides.length} slides. Say “start presentation” when you are ready.`;
+    ps.current=0; ps.active=false; ps.paused=false; ps.autoAdvance=true; ps.narration=`${deck.name} is ready. I found ${deck.slides.length} slides. Attach a PDF export of the same deck to preserve the original slide appearance. Then say “start presentation” when you are ready.`;
     render();
     presentationSpeak(ps.narration);
   } catch(err) {
@@ -936,6 +964,7 @@ async function handleAction(action,arg) {
   if(action==='openPresentation'){state.page='presentation';render();return;}
   if(action==='closePresentation'){stopPresentation(false);state.page='agent';render();return;}
   if(action==='uploadPresentation'){document.getElementById('pptxUpload')?.click();return;}
+  if(action==='uploadPresentationPdf'){document.getElementById('pdfPresentationUpload')?.click();return;}
   if(action==='startPresentation') return startPresentation();
   if(action==='stopPresentation'){stopPresentation(false);return;}
   if(action==='nextSlide') return nextPresentationSlide(false);
@@ -975,7 +1004,12 @@ async function handleAction(action,arg) {
 
 document.addEventListener('click',e=>{const navEl=e.target.closest('[data-nav]');if(navEl){state.page=navEl.dataset.nav;render();return;}const actionEl=e.target.closest('[data-action]');if(actionEl)handleAction(actionEl.dataset.action,actionEl.dataset.arg||'');});
 document.addEventListener('input',e=>{if(e.target.id==='ticketSearch'){state.search=e.target.value;render();const el=document.getElementById('ticketSearch');if(el){el.focus();el.setSelectionRange(state.search.length,state.search.length);}} if(e.target.id==='agentPrompt') window.__agentDraft=e.target.value;});
-document.addEventListener('change',e=>{if(e.target.id==='pptxUpload'&&e.target.files?.[0]) loadPresentationFile(e.target.files[0]);});
+document.addEventListener('change',e=>{
+  if(e.target.id==='pptxUpload'&&e.target.files?.[0]) loadPresentationFile(e.target.files[0]);
+  if(e.target.id==='pdfPresentationUpload'&&e.target.files?.[0]) {
+    try { attachPresentationPdf(e.target.files[0]); } catch(err) { toast(err.message); }
+  }
+});
 document.addEventListener('keydown',e=>{
   if((e.target.id==='agentPrompt'||e.target.id==='resultPrompt')&&e.key==='Enter'&&!e.shiftKey){e.preventDefault(); if(e.target.id==='agentPrompt') askAiHome(e.target.value,true); else askAi(e.target.value);}
   if(e.target.id==='presentationCommand'&&e.key==='Enter'){e.preventDefault();handlePresentationCommand(e.target.value);}

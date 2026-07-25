@@ -1,8 +1,8 @@
 {
   "name": "ai-governance-command-center-appservice",
   "private": true,
-  "version": "12.1.0",
-  "description": "AI Operations Agent with voice, mobile, dynamic PowerPoint presentation, and local identity/personality intents",
+  "version": "12.2.0",
+  "description": "AI Operations Agent with original PDF slide visuals plus PPTX narration",
   "engines": {
     "node": ">=20"
   },

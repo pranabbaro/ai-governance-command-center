@@ -617,3 +617,10 @@
   .v12-presenter-panel{flex-direction:row;min-height:180px}.v12-presenter-robot{width:34%;height:auto;min-height:180px}.v12-presenter-status{width:66%;padding:13px}.v12-presenter-status .v11-wave{min-height:38px;height:38px}.v12-presenter-status p{font-size:12px;max-height:65px;overflow:auto}
   .v12-controls{gap:6px}.v12-controls button{padding:9px 10px;font-size:12px}.v12-commandbar{position:sticky;bottom:4px}.v12-commandbar input{font-size:16px}
 }
+
+/* V12.2 original slide visual mode */
+.v122-attached{border-color:#20c98f!important;color:#75ffd1!important;background:#063126!important}
+.v122-pdf-slide{padding:12px!important;overflow:hidden!important;background:#081a34!important;display:flex;flex-direction:column}
+.v122-pdf-slide .v12-slide-label{flex:0 0 auto;padding:2px 4px 10px;color:#65d9ff}
+.v122-pdf-frame{width:100%;flex:1 1 auto;min-height:0;border:0;border-radius:6px;background:#fff}
+@media(max-width:900px){.v122-pdf-slide{height:58dvh!important;min-height:430px!important}.v122-pdf-frame{min-height:390px}}
