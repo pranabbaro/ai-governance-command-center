@@ -219,3 +219,11 @@
 
 /* === V11.5: preserve V11.3 robot/globe exactly; remove bottom quick cards only === */
 .v11-actions{display:none!important}
+
+
+/* === V11.6: lower prompt only; V11.3 robot/globe remains unchanged === */
+@media (min-width: 901px){
+  .v11-prompt{
+    bottom:28px !important;
+  }
+}

@@ -16,7 +16,7 @@ Pixel-matched enterprise landing page based on the approved visual.
 2. Commit and push to `main`.
 3. Wait for Azure App Service deployment.
 4. Hard refresh with Ctrl+Shift+R.
-5. Verify `/health` reports version `11.5.0`.
+5. Verify `/health` reports version `11.4.0`.
 
 Use Microsoft Edge or Google Chrome and allow microphone access.
 
@@ -27,8 +27,14 @@ Use Microsoft Edge or Google Chrome and allow microphone access.
 - Kept the complete robot and globe visible without a portrait-shaped frame.
 
 
-## V11.5 changes
+## V11.4 changes
 - Removed the four bottom quick-action cards from the AI home page.
 - Moved the voice/text prompt to the bottom to keep the robot legs visible.
 - Increased the full-body robot presentation while preserving head-to-toe visibility.
 - Added a CSS-rendered complete globe halo behind the clean robot image so the globe boundary stays visible on both left and right sides.
+
+
+## V11.6
+- Preserves V11.3 robot/globe position, size and scaling.
+- Keeps V11.5 bottom cards removed.
+- Moves only the desktop voice/text prompt down to 28px from the bottom so the robot legs and feet remain unobstructed.
