@@ -208,7 +208,7 @@ Create an HTTP Action in Agent Studio that POSTs the final governance output to 
 ## V8 query behavior
 Quantitative questions such as "How many SLA breaches are there?" are answered directly from the latest live Moveworks/ServiceNow KPI snapshot. Analytical questions such as "Why are our SLAs breaching?" continue through the Moveworks AI workflow and display the generated RCA narrative.
 
-## Version 10.2.0
+## Version 10.3.0
 
 - Minimal AI-first landing page
 - 3D AI visual occupies 80% of the desktop home page
@@ -218,3 +218,10 @@ Quantitative questions such as "How many SLA breaches are there?" are answered d
 - Existing Command Center, SLA, ageing, DevOps, Moveworks callback and governance actions are retained
 
 For voice recognition and automatic voice responses, use the current version of Microsoft Edge or Google Chrome and allow microphone access.
+
+
+## Version 10.3.0
+- Full-body 3D robot remains completely visible using a dedicated clean image and contain scaling.
+- Voice input interrupts any active spoken response immediately.
+- Added Pause/Resume, Stop, Copy, Close, and View Full Analysis controls.
+- Voice questions remain on the home page and are answered aloud automatically.

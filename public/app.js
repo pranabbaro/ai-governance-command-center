@@ -165,36 +165,54 @@ function agentVisual() {
 
 function renderAgent() {
   const speechSupported=Boolean(window.SpeechRecognition||window.webkitSpeechRecognition);
-  return `<div class="agent-landing">
-    <header class="agent-landing-header">
-      <div class="agent-landing-brand"><span class="agent-brand-icon">✦</span><div><strong>AI Operations Agent</strong><small>Intelligent operations assistant</small></div></div>
-      <div class="agent-landing-actions"><span class="agent-connected"><i></i> Systems connected</span><button class="agent-dashboard-link" data-nav="command">Open Command Center</button></div>
+  const hasResponse=Boolean(window.__homeResponse);
+  const speaking=Boolean(window.__speechActive);
+  const paused=Boolean(window.__speechPaused);
+  return `<div class="agent-v103">
+    <header class="agent-v103-header">
+      <div class="agent-v103-brand"><span class="agent-v103-logo">✦</span><div><strong>AI Operations Agent</strong><small>Intelligent operations assistant</small></div></div>
+      <div class="agent-v103-header-actions"><span class="agent-v103-connected"><i></i> Systems connected</span><button class="agent-v103-dashboard" data-nav="command">Open Command Center</button></div>
     </header>
 
-    <main class="agent-landing-main">
-      <section class="agent-landing-copy">
-        <span class="agent-kicker">VOICE + CHAT</span>
-        <h1>AI Operations<br><em>Agent</em></h1>
-        <p>Ask about incidents, SLA, DevOps, cloud cost or knowledge articles.</p>
-        <div class="agent-mini-status"><span>● Moveworks</span><span>● ServiceNow</span></div>
+    <aside class="agent-v103-side" aria-label="Agent navigation">
+      <button class="active" data-nav="agent"><span>⌂</span><small>Home</small></button>
+      <button data-nav="sla"><span>◷</span><small>SLA</small></button>
+      <button data-nav="devops"><span>∞</span><small>DevOps</small></button>
+      <button data-nav="ai"><span>◈</span><small>Ask AI</small></button>
+    </aside>
+
+    <main class="agent-v103-main">
+      <section class="agent-v103-stage">
+        <div class="agent-v103-greeting ${hasResponse?'is-hidden':''}"><strong>Hello! 👋</strong><span>I’m your AI Operations Agent.<br>How can I assist you today?</span></div>
+        <img src="/assets/ai-operations-agent-full-body.png?v=10.3.0" alt="Full-body 3D AI Operations Agent" />
+        <div class="agent-v103-glow"></div>
+
+        ${hasResponse?`<article class="agent-v103-response ${window.__homeBusy?'is-busy':''}">
+          <header><div><b>🤖</b><strong>AI Operations Agent</strong></div><button data-action="closeHomeResponse" title="Close response">×</button></header>
+          <div class="agent-v103-speaking"><span>🔊</span><div><strong>${window.__homeBusy?'Analyzing…':speaking?(paused?'Paused':'Speaking…'):'Response'}</strong><div class="agent-v103-wave ${speaking&&!paused?'active':''}">${'<i></i>'.repeat(18)}</div></div></div>
+          <div class="agent-v103-response-text">${formatAiText(window.__homeResponse)}</div>
+          <div class="agent-v103-response-actions">
+            <button data-action="pauseResumeSpeech" ${speaking?'':'disabled'}>${paused?'▶ Resume':'⏸ Pause'}</button>
+            <button data-action="stopSpeech" ${speaking?'':'disabled'}>■ Stop</button>
+            <button data-action="copyHomeResponse">▣ Copy</button>
+          </div>
+          <button class="agent-v103-full" data-action="openFullAnalysis">View Full Analysis ↗</button>
+        </article>`:''}
       </section>
 
-      <section class="agent-visual-80" aria-label="3D AI Operations Agent">
-        <img src="/assets/ai-operations-agent-3d-clean.png?v=10.2.0" alt="Futuristic 3D AI Operations Agent" />
-        <div class="agent-visual-shade"></div>
-        ${window.__homeResponse
-          ? `<div class="agent-home-response ${window.__homeBusy?'is-busy':''}"><strong>${window.__homeBusy?'Listening & analyzing…':'AI Operations Agent'}</strong><span>${formatAiText(window.__homeResponse)}</span></div>`
-          : `<div class="agent-greeting"><strong>Hello! 👋</strong><span>I’m your AI Operations Agent.<br>How can I assist you today?</span></div>`}
+      <section class="agent-v103-quick" aria-label="Quick actions">
+        <button data-action="quickAgent" data-arg="How many SLA breaches do we have?"><span>⚠</span><div><strong>SLA</strong><small>SLA Breaches</small></div></button>
+        <button data-action="quickAgent" data-arg="Show open incidents"><span>△</span><div><strong>Incidents</strong><small>Open Incidents</small></div></button>
+        <button data-action="quickAgent" data-arg="Show DevOps user stories"><span>∞</span><div><strong>DevOps</strong><small>Work Items</small></div></button>
+        <button data-action="quickAgent" data-arg="Find a relevant knowledge base article"><span>▤</span><div><strong>Knowledge Base</strong><small>Search Articles</small></div></button>
       </section>
 
-      <section class="agent-command-dock">
-        <div class="agent-command-input">
-          <textarea id="agentPrompt" rows="1" placeholder="Ask about incidents, SLA, DevOps, cloud cost or anything...">${escapeHtml(window.__agentDraft||'')}</textarea>
-          <button class="agent-voice-round ${window.__voiceListening?'listening':''}" data-action="startVoice" title="${speechSupported?'Speak to the AI agent':'Voice recognition is not supported in this browser'}" ${speechSupported?'':'disabled'}><span>🎤</span></button>
-          <button class="agent-send-round" data-action="agentAsk" title="Ask Agent">➜</button>
-        </div>
-        <div class="agent-command-hint">${window.__voiceListening?'Listening… speak naturally.':'Voice questions are answered aloud automatically.'}</div>
+      <section class="agent-v103-command">
+        <button class="agent-v103-mic ${window.__voiceListening?'listening':''}" data-action="startVoice" title="${speechSupported?'Speak to the AI agent':'Voice recognition is not supported in this browser'}" ${speechSupported?'':'disabled'}>${window.__voiceListening?'◉':'🎤'}</button>
+        <textarea id="agentPrompt" rows="1" placeholder="Ask about incidents, SLA, DevOps, cloud cost or anything...">${escapeHtml(window.__agentDraft||'')}</textarea>
+        <button class="agent-v103-send" data-action="agentAsk" title="Ask Agent">➜</button>
       </section>
+      <div class="agent-v103-hint">${window.__voiceListening?'Listening… speak naturally.':'Voice questions are answered aloud automatically. Press the microphone again to interrupt and ask the next question.'}</div>
     </main>
   </div>`;
 }
@@ -221,40 +239,100 @@ function renderResults() {
   </section>`);
 }
 
+function stopCurrentSpeech() {
+  if('speechSynthesis' in window) window.speechSynthesis.cancel();
+  window.__speechUtterance=null;
+  window.__speechActive=false;
+  window.__speechPaused=false;
+}
+
 function startVoice(targetId='agentPrompt') {
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   if(!SR) return toast('Voice recognition is not supported in this browser. Chrome or Edge is recommended.');
+
+  // Pressing the microphone always interrupts the current spoken response first.
+  stopCurrentSpeech();
   if(window.__recognition) { try{window.__recognition.stop();}catch{} window.__recognition=null; }
-  const recognition=new SR(); window.__recognition=recognition; recognition.lang='en-IN'; recognition.interimResults=true; recognition.continuous=false;
-  let finalText=''; window.__agentDraft=''; window.__homeResponse=''; window.__voiceListening=true; render();
-  recognition.onresult=(event)=>{let interim=''; for(let i=event.resultIndex;i<event.results.length;i++){const t=event.results[i][0].transcript;if(event.results[i].isFinal)finalText+=t;else interim+=t;} const el=document.getElementById(targetId); if(el) el.value=(finalText||interim).trim(); window.__agentDraft=(finalText||interim).trim();};
-  recognition.onerror=(event)=>{window.__voiceListening=false; window.__recognition=null; toast(`Voice input: ${event.error}`); render();};
-  recognition.onend=()=>{window.__voiceListening=false; window.__recognition=null; const text=(finalText||window.__agentDraft||'').trim(); render(); if(text){window.__voiceInitiated=true; setTimeout(()=>askAi(text,{stayHome:true}),250);}};
-  try{recognition.start();}catch(err){window.__voiceListening=false; toast(err.message);}
+
+  const recognition=new SR();
+  window.__recognition=recognition;
+  recognition.lang='en-IN';
+  recognition.interimResults=true;
+  recognition.continuous=false;
+  let finalText='';
+  window.__agentDraft='';
+  window.__voiceListening=true;
+  render();
+
+  recognition.onresult=(event)=>{
+    let interim='';
+    for(let i=event.resultIndex;i<event.results.length;i++){
+      const t=event.results[i][0].transcript;
+      if(event.results[i].isFinal) finalText+=t; else interim+=t;
+    }
+    const value=(finalText||interim).trim();
+    const el=document.getElementById(targetId);
+    if(el) el.value=value;
+    window.__agentDraft=value;
+  };
+  recognition.onerror=(event)=>{
+    window.__voiceListening=false;
+    window.__recognition=null;
+    toast(`Voice input: ${event.error}`);
+    render();
+  };
+  recognition.onend=()=>{
+    window.__voiceListening=false;
+    window.__recognition=null;
+    const text=(finalText||window.__agentDraft||'').trim();
+    render();
+    if(text){
+      window.__voiceInitiated=true;
+      setTimeout(()=>askAi(text,{stayHome:true}),200);
+    }
+  };
+  try{recognition.start();}catch(err){window.__voiceListening=false;toast(err.message);render();}
 }
 
-function readAloud() {
+function createSpeech(text, force=false) {
   if(!('speechSynthesis' in window)) return toast('Text-to-speech is not supported in this browser.');
-  const text=String(window.__aiAnswer||'').replace(/\*\*/g,'').replace(/[#*_`]/g,' ').trim();
-  if(!text) return toast('There is no response to read yet.');
-  window.speechSynthesis.cancel(); const utter=new SpeechSynthesisUtterance(text); utter.lang='en-IN'; utter.rate=0.95; window.speechSynthesis.speak(utter);
-}
-
-function speakVoiceResponse(text) {
-  if(!window.__voiceInitiated || !('speechSynthesis' in window)) return;
-  const clean=String(text||'')
-    .replace(/\*\*/g,'')
-    .replace(/[#*_`]/g,' ')
-    .replace(/\s+/g,' ')
-    .trim();
-  window.__voiceInitiated=false;
+  const clean=String(text||'').replace(/\*\*/g,'').replace(/[#*_`]/g,' ').replace(/\s+/g,' ').trim();
   if(!clean) return;
-  window.speechSynthesis.cancel();
+  stopCurrentSpeech();
   const utter=new SpeechSynthesisUtterance(clean);
   utter.lang='en-IN';
   utter.rate=0.95;
   utter.pitch=1;
+  utter.onstart=()=>{window.__speechActive=true;window.__speechPaused=false;if(state.page==='agent')render();};
+  utter.onend=()=>{window.__speechActive=false;window.__speechPaused=false;window.__speechUtterance=null;if(state.page==='agent')render();};
+  utter.onerror=()=>{window.__speechActive=false;window.__speechPaused=false;window.__speechUtterance=null;if(state.page==='agent')render();};
+  window.__speechUtterance=utter;
   window.speechSynthesis.speak(utter);
+}
+
+function readAloud() {
+  const text=String(window.__aiAnswer||window.__homeResponse||'');
+  if(!text.trim()) return toast('There is no response to read yet.');
+  createSpeech(text,true);
+}
+
+function speakVoiceResponse(text) {
+  if(!window.__voiceInitiated) return;
+  window.__voiceInitiated=false;
+  createSpeech(text,true);
+}
+
+function pauseResumeSpeech() {
+  if(!('speechSynthesis' in window)||!window.__speechActive) return;
+  if(window.speechSynthesis.paused){window.speechSynthesis.resume();window.__speechPaused=false;}
+  else{window.speechSynthesis.pause();window.__speechPaused=true;}
+  render();
+}
+
+function copyHomeResponse() {
+  const text=String(window.__homeResponse||'').replace(/\*\*/g,'');
+  if(!text) return toast('There is no response to copy.');
+  navigator.clipboard?.writeText(text).then(()=>toast('Response copied')).catch(()=>toast('Unable to copy the response.'));
 }
 
 function render() {
@@ -413,6 +491,12 @@ function openAssign(ticketId) {
 
 async function handleAction(action,arg) {
   if(action==='refreshData'){await refreshDashboard(true);return;}
+  if(action==='quickAgent') return askAi(arg,{stayHome:true});
+  if(action==='stopSpeech'){stopCurrentSpeech();render();return;}
+  if(action==='pauseResumeSpeech'){pauseResumeSpeech();return;}
+  if(action==='copyHomeResponse'){copyHomeResponse();return;}
+  if(action==='closeHomeResponse'){stopCurrentSpeech();window.__homeResponse='';window.__homeBusy=false;render();return;}
+  if(action==='openFullAnalysis'){stopCurrentSpeech();state.page='results';window.__aiAnswer=window.__homeResponse||window.__aiAnswer||'';render();return;}
   if(action==='agentAsk') return askAi(document.getElementById('agentPrompt')?.value||'',{stayHome:false});
   if(action==='agentPrompt') return askAi(arg);
   if(action==='startVoice') return startVoice('agentPrompt');
@@ -433,7 +517,7 @@ async function handleAction(action,arg) {
 
 document.addEventListener('click',e=>{const navEl=e.target.closest('[data-nav]');if(navEl){state.page=navEl.dataset.nav;render();return;}const actionEl=e.target.closest('[data-action]');if(actionEl)handleAction(actionEl.dataset.action,actionEl.dataset.arg||'');});
 document.addEventListener('input',e=>{if(e.target.id==='ticketSearch'){state.search=e.target.value;render();const el=document.getElementById('ticketSearch');if(el){el.focus();el.setSelectionRange(state.search.length,state.search.length);}} if(e.target.id==='agentPrompt') window.__agentDraft=e.target.value;});
-document.addEventListener('keydown',e=>{if((e.target.id==='agentPrompt'||e.target.id==='resultPrompt')&&e.key==='Enter'&&!e.shiftKey){e.preventDefault();askAi(e.target.value);}});
+document.addEventListener('keydown',e=>{if((e.target.id==='agentPrompt'||e.target.id==='resultPrompt')&&e.key==='Enter'&&!e.shiftKey){e.preventDefault();askAi(e.target.value,{stayHome:e.target.id==='agentPrompt'});}});
 
 setInterval(()=>refreshDashboard(false),5*60*1000);
 render(); refreshDashboard(false);
