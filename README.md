@@ -208,15 +208,13 @@ Create an HTTP Action in Agent Studio that POSTs the final governance output to 
 ## V8 query behavior
 Quantitative questions such as "How many SLA breaches are there?" are answered directly from the latest live Moveworks/ServiceNow KPI snapshot. Analytical questions such as "Why are our SLAs breaching?" continue through the Moveworks AI workflow and display the generated RCA narrative.
 
-## Version 10.0.0 — Enterprise AI Operations Agent homepage
+## Version 10.1.0
 
-This package adds a dark enterprise landing page closely matching the approved visual concept:
+- Minimal AI-first landing page
+- 3D AI visual occupies 80% of the desktop home page
+- Voice recognition automatically submits the spoken question
+- Responses to voice-originated questions are spoken automatically using browser text-to-speech
+- Typed questions remain text-only unless the user selects **Read aloud**
+- Existing Command Center, SLA, ageing, DevOps, Moveworks callback and governance actions are retained
 
-- Large 3D AI Operations Agent occupying the primary hero area
-- Live SLA, ageing-ticket, and DevOps KPI cards
-- Voice and text command bar
-- Connected-system indicators
-- Quick actions for SLA, incidents, DevOps, KB, cloud cost, and the executive dashboard
-- All existing Moveworks, ServiceNow callback, SLA analysis, ageing-ticket, assignment, notification, EOD, and dashboard functions are retained
-
-The 3D robot visual is stored locally at `public/assets/ai-operations-robot.png`, so the page does not depend on an external image URL.
+For voice recognition and automatic voice responses, use the current version of Microsoft Edge or Google Chrome and allow microphone access.

@@ -47,7 +47,7 @@ function liveBanner() {
 
 function layout(content) {
   const title = state.page==='results' ? 'AI Operations Result' : (nav.find(x => x[0] === state.page)?.[1] || 'Command Center');
-  return `<div class="shell ${state.page==='agent'?'agent-shell':''}"><aside class="sidebar">
+  return `<div class="shell"><aside class="sidebar">
     <div class="brand"><div class="brandmark">✦</div><div><strong>AI Governance</strong><span>Command Center</span></div></div>
     <div class="hackathon-badge">Moveworks Hackathon</div>
     <nav>${nav.map(([key,label,icon])=>`<button class="navbtn ${state.page===key?'active':''}" data-nav="${key}"><span>${icon}</span>${label}</button>`).join('')}</nav>
@@ -155,55 +155,47 @@ function localOperationalResult(prompt) {
 }
 
 function agentVisual() {
-  return `<div class="hero-ai-stage" aria-label="3D AI Operations Agent">
-    <div class="hero-orbit orbit-a"></div><div class="hero-orbit orbit-b"></div><div class="hero-orbit orbit-c"></div>
-    <div class="hero-glow"></div>
-    <img class="hero-robot" src="/assets/ai-operations-robot.png?v=10.0.0" alt="3D AI Operations Agent" />
-    <div class="ai-speech"><strong>Hello! 👋</strong><span>I’m your AI Operations Agent.<br>How can I assist you today?</span></div>
+  return `<div class="agent-portrait" aria-hidden="true">
+    <div class="agent-halo halo-one"></div><div class="agent-halo halo-two"></div>
+    <div class="agent-head"><div class="agent-face"><span></span><span></span><i></i></div></div>
+    <div class="agent-core"><b>AI</b></div>
+    <div class="agent-node n1"></div><div class="agent-node n2"></div><div class="agent-node n3"></div><div class="agent-node n4"></div>
   </div>`;
 }
 
 function renderAgent() {
   const speechSupported=Boolean(window.SpeechRecognition||window.webkitSpeechRecognition);
-  const metricCard=(icon,label,value,trend,tone)=>`<div class="hero-metric ${tone}"><span class="hero-metric-icon">${icon}</span><div><small>${label}</small><strong>${value}</strong><em>${trend}</em></div></div>`;
-  const quick=(icon,title,desc,prompt,tone)=>`<button class="home-quick ${tone}" data-action="agentPrompt" data-arg="${escapeHtml(prompt)}"><span class="quick-icon">${icon}</span><strong>${title}</strong><small>${desc}</small><b>→</b></button>`;
-  return layout(`<section class="agent-home-v10">
-    <div class="home-metrics">
-      ${metricCard('◇','CRITICAL SLA',state.slaCritical,'Immediate attention','red')}
-      ${metricCard('◷','BREACHED SLA',state.slaBreached,'Live SLA records','violet')}
-      ${metricCard('⌛','AGEING TICKETS',state.ageingTotal,'Governance backlog','amber')}
-      ${metricCard('✓','DEVOPS COMPLIANCE',state.devopsHygiene?state.devopsHygiene+'%':'—',state.devopsHygiene?'Live governance score':'Connector planned','blue')}
-      ${metricCard('☁','CLOUD SPEND (MTD)','—','Connector planned','green')}
-    </div>
-    <div class="agent-hero-v10">
-      <div class="hero-copy-v10">
-        <span class="eyebrow-v10">INTELLIGENT OPERATIONS ASSISTANT</span>
-        <h2>AI OPERATIONS<br><span>AGENT</span></h2>
-        <h3>Intelligent. Proactive. <b>Always On.</b></h3>
-        <p>Ask anything about incidents, SLA, DevOps, cloud cost, or governance. Your existing Moveworks and ServiceNow workflows stay connected.</p>
-        <div class="connected-label">CONNECTED SYSTEMS</div>
-        <div class="connected-grid"><span>◆ Moveworks</span><span>now ServiceNow</span><span>▰ Azure DevOps</span><span>△ Microsoft Azure</span></div>
-      </div>
-      ${agentVisual()}
-      <div class="hero-command-bar">
-        <textarea id="agentPrompt" rows="1" placeholder="Ask about incidents, SLA, DevOps, cloud cost or anything...">${escapeHtml(window.__agentDraft||'')}</textarea>
-        <button class="command-mic ${window.__voiceListening?'listening':''}" data-action="startVoice" ${speechSupported?'':'disabled'} title="Voice command">🎙<span>${window.__voiceListening?'Listening':'Voice'}</span></button>
-        <button class="command-send" data-action="agentAsk" title="Analyze">➜<span>Analyze</span></button>
-      </div>
-    </div>
-    <div class="quick-title"><span>QUICK ACTIONS</span></div>
-    <div class="quick-grid-v10">
-      ${quick('⚠','SLA breach count','View all breached SLA tickets','Show me all breached SLA tickets','red')}
-      ${quick('◷','At Risk SLA','View at-risk SLA tickets','Show me all at risk SLA tickets','violet')}
-      ${quick('◇','Incidents','Search and analyze incidents','Show me all incidents','amber')}
-      ${quick('▰','DevOps Stories','Search user stories and tasks','Show me DevOps user stories','blue')}
-      ${quick('▤','Knowledge Base','Search KB articles','Find a knowledge base article','green')}
-      ${quick('☁','Cloud Cost','Analyze cloud cost and usage','Show cloud cost details','cyan')}
-      <button class="home-quick indigo" data-nav="command"><span class="quick-icon">▥</span><strong>Executive Dashboard</strong><small>Open full command center</small><b>→</b></button>
-    </div>
-  </section>`);
-}
+  return `<div class="agent-landing">
+    <header class="agent-landing-header">
+      <div class="agent-landing-brand"><span class="agent-brand-icon">✦</span><div><strong>AI Operations Agent</strong><small>Intelligent operations assistant</small></div></div>
+      <div class="agent-landing-actions"><span class="agent-connected"><i></i> Systems connected</span><button class="agent-dashboard-link" data-nav="command">Open Command Center</button></div>
+    </header>
 
+    <main class="agent-landing-main">
+      <section class="agent-landing-copy">
+        <span class="agent-kicker">VOICE + CHAT</span>
+        <h1>AI Operations<br><em>Agent</em></h1>
+        <p>Ask about incidents, SLA, DevOps, cloud cost or knowledge articles.</p>
+        <div class="agent-mini-status"><span>● Moveworks</span><span>● ServiceNow</span></div>
+      </section>
+
+      <section class="agent-visual-80" aria-label="3D AI Operations Agent">
+        <img src="/assets/ai-operations-agent-3d.png?v=10.1.0" alt="Futuristic 3D AI Operations Agent" />
+        <div class="agent-visual-shade"></div>
+        <div class="agent-greeting"><strong>Hello! 👋</strong><span>I’m your AI Operations Agent.<br>How can I assist you today?</span></div>
+      </section>
+
+      <section class="agent-command-dock">
+        <div class="agent-command-input">
+          <textarea id="agentPrompt" rows="1" placeholder="Ask about incidents, SLA, DevOps, cloud cost or anything...">${escapeHtml(window.__agentDraft||'')}</textarea>
+          <button class="agent-voice-round ${window.__voiceListening?'listening':''}" data-action="startVoice" title="${speechSupported?'Speak to the AI agent':'Voice recognition is not supported in this browser'}" ${speechSupported?'':'disabled'}><span>🎤</span></button>
+          <button class="agent-send-round" data-action="agentAsk" title="Ask Agent">➜</button>
+        </div>
+        <div class="agent-command-hint">${window.__voiceListening?'Listening… speak naturally.':'Voice questions are answered aloud automatically.'}</div>
+      </section>
+    </main>
+  </div>`;
+}
 function resultTicketTable(rows=[]) {
   if(!rows.length) return `<div class="result-note">Individual ticket records are not included in the current callback yet. The MVP is ready to render ticket numbers automatically once the Moveworks callback includes the records.</div>`;
   return `<div class="result-table"><table><thead><tr><th>Ticket</th><th>Status</th><th>Team / Owner</th><th>Risk</th></tr></thead><tbody>${rows.slice(0,20).map(x=>`<tr><td><strong>${escapeHtml(x.id||x.number||'')}</strong><div class="muted">${escapeHtml(x.title||x.summary||'')}</div></td><td>${badge(x.status||x.sla||'Breached','danger')}</td><td>${escapeHtml(x.team||'')}<div class="muted">${escapeHtml(x.assignee||'')}</div></td><td>${escapeHtml(x.risk||'—')}</td></tr>`).join('')}</tbody></table></div>`;
@@ -235,7 +227,7 @@ function startVoice(targetId='agentPrompt') {
   let finalText=''; window.__voiceListening=true; render();
   recognition.onresult=(event)=>{let interim=''; for(let i=event.resultIndex;i<event.results.length;i++){const t=event.results[i][0].transcript;if(event.results[i].isFinal)finalText+=t;else interim+=t;} const el=document.getElementById(targetId); if(el) el.value=(finalText||interim).trim(); window.__agentDraft=(finalText||interim).trim();};
   recognition.onerror=(event)=>{window.__voiceListening=false; window.__recognition=null; toast(`Voice input: ${event.error}`); render();};
-  recognition.onend=()=>{window.__voiceListening=false; window.__recognition=null; const text=(finalText||window.__agentDraft||'').trim(); render(); if(text){setTimeout(()=>askAi(text),250);}};
+  recognition.onend=()=>{window.__voiceListening=false; window.__recognition=null; const text=(finalText||window.__agentDraft||'').trim(); render(); if(text){window.__voiceInitiated=true; setTimeout(()=>askAi(text),250);}};
   try{recognition.start();}catch(err){window.__voiceListening=false; toast(err.message);}
 }
 
@@ -244,6 +236,23 @@ function readAloud() {
   const text=String(window.__aiAnswer||'').replace(/\*\*/g,'').replace(/[#*_`]/g,' ').trim();
   if(!text) return toast('There is no response to read yet.');
   window.speechSynthesis.cancel(); const utter=new SpeechSynthesisUtterance(text); utter.lang='en-IN'; utter.rate=0.95; window.speechSynthesis.speak(utter);
+}
+
+function speakVoiceResponse(text) {
+  if(!window.__voiceInitiated || !('speechSynthesis' in window)) return;
+  const clean=String(text||'')
+    .replace(/\*\*/g,'')
+    .replace(/[#*_`]/g,' ')
+    .replace(/\s+/g,' ')
+    .trim();
+  window.__voiceInitiated=false;
+  if(!clean) return;
+  window.speechSynthesis.cancel();
+  const utter=new SpeechSynthesisUtterance(clean);
+  utter.lang='en-IN';
+  utter.rate=0.95;
+  utter.pitch=1;
+  window.speechSynthesis.speak(utter);
 }
 
 function render() {
@@ -341,28 +350,42 @@ async function askAi(prompt) {
 
   // Fast local operational answers: counts and list requests should appear immediately.
   const local=localOperationalResult(clean);
-  if(local) { window.__agentLocalResult=local; window.__aiAnswer=local.answer; state.page='results'; state.aiBusy=false; render(); return; }
+  if(local) {
+    window.__agentLocalResult=local;
+    window.__aiAnswer=local.answer;
+    state.page='results'; state.aiBusy=false; render();
+    speakVoiceResponse(local.answer);
+    return;
+  }
 
   state.page='results'; state.aiBusy=true; window.__aiAnswer=''; render();
+  let finalAnswer='';
   try {
     const result=await api('/api/ai/query',{method:'POST',body:JSON.stringify({prompt:clean})});
     if(result.mode==='webhook-trigger') {
       window.__aiAnswer=result.answer||'Moveworks accepted the request. Waiting for the live callback…'; render();
       const callback=await waitForMoveworksResult(result.startedAt,result.requestId);
       if(callback) {
-        window.__aiAnswer=resultSummary(callback,clean);
+        finalAnswer=resultSummary(callback,clean);
+        window.__aiAnswer=finalAnswer;
         await refreshDashboard(false);
         state.page='results';
       } else {
-        window.__aiAnswer='Moveworks accepted the request and the workflow is still running. The result page will refresh when the callback is received.';
+        finalAnswer='Moveworks accepted the request and the workflow is still running. Please check the result page shortly.';
+        window.__aiAnswer=finalAnswer;
       }
     } else {
-      window.__aiAnswer=result.answer||'No AI response returned.';
+      finalAnswer=result.answer||'No AI response returned.';
+      window.__aiAnswer=finalAnswer;
     }
-  } catch(err) { window.__aiAnswer=`Unable to contact Moveworks AI: ${err.message}`; }
-  finally { state.aiBusy=false; state.page='results'; render(); }
+  } catch(err) {
+    finalAnswer=`Unable to contact Moveworks AI: ${err.message}`;
+    window.__aiAnswer=finalAnswer;
+  } finally {
+    state.aiBusy=false; state.page='results'; render();
+    speakVoiceResponse(finalAnswer||window.__aiAnswer);
+  }
 }
-
 function openAssign(ticketId) {
   const t=state.tickets.find(x=>x.id===ticketId); if(!t) return; state.selectedTicket=t;
   const overlay=document.createElement('div'); overlay.className='modalback'; overlay.id='assignModal';
