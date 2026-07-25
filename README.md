@@ -16,7 +16,7 @@ Pixel-matched enterprise landing page based on the approved visual.
 2. Commit and push to `main`.
 3. Wait for Azure App Service deployment.
 4. Hard refresh with Ctrl+Shift+R.
-5. Verify `/health` reports version `11.2.0`.
+5. Verify `/health` reports version `11.3.0`.
 
 Use Microsoft Edge or Google Chrome and allow microphone access.
 

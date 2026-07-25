@@ -1,7 +1,7 @@
 {
   "name": "ai-governance-command-center-appservice",
   "private": true,
-  "version": "11.2.0",
+  "version": "11.3.0",
   "description": "Real DOM enterprise AI Operations Agent homepage with centered 3D robot, voice controls, Moveworks and ServiceNow integration",
   "engines": {
     "node": ">=20"
