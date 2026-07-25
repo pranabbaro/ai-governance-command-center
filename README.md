@@ -79,3 +79,15 @@ Use Microsoft Edge or Google Chrome and allow microphone access.
 - Voice/typed presentation commands: start, pause, continue, next slide, previous slide, stop, explain this slide, summarize this slide, restart.
 - Existing Moveworks, ServiceNow, governance dashboards, automatic voice response, and mobile behavior are retained.
 - MVP limitation: the browser reconstructs slide content from PowerPoint text and the first referenced image; it does not reproduce every PowerPoint shape/animation with pixel-perfect fidelity.
+
+
+## V12.1 — Agent Personality / Self-Introduction
+- Keeps V12.0 Presentation Mode, V11.8 mobile layout, voice behavior, Moveworks and governance integrations.
+- Adds a local identity/personality intent layer before Moveworks routing.
+- “Introduce yourself” / “Tell me about yourself” returns the full management-ready introduction.
+- “Who are you?” returns a concise identity response.
+- “Who created/built/invented you?” returns the July 22, 2026 Moveworks hackathon origin story.
+- “What can you do?” / “What are your capabilities?” returns the technical capability response.
+- “What is your purpose?” returns the product-purpose response.
+- Identity responses display in the existing AI response panel and are spoken automatically using the existing text-to-speech and 43-bar waveform.
+- These identity requests are answered locally and do not call Moveworks, which keeps the wording consistent and the response immediate.

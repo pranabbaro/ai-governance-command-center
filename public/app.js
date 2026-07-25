@@ -194,7 +194,7 @@ function renderAgent() {
 
         <div class="v11-visual" aria-label="3D AI operations robot">
           <div class="v11-visual-glow"></div>
-          <img src="/ai-agent-center.png?v=12.0.0" alt="Full-body 3D AI robot standing before a glowing digital globe">
+          <img src="/ai-agent-center.png?v=12.1.0" alt="Full-body 3D AI robot standing before a glowing digital globe">
         </div>
 
         <aside class="v11-response ${state.aiBusy?'busy':''} ${(answer||state.aiBusy||speaking)?'has-content':''}">
@@ -218,6 +218,103 @@ function renderAgent() {
   </div>`;
 }
 
+
+
+/* =========================================================
+   V12.1 — AI AGENT PERSONALITY / IDENTITY LAYER
+   These responses are handled locally for speed and consistency.
+   ========================================================= */
+const AGENT_IDENTITY = {
+  fullIntroduction: `Hello! I’m the AI Operations Agent.
+
+I was brought to life on July 22, 2026, by my friend Pranab Baro, as part of a Moveworks hackathon training and competition.
+
+Our first mission was ambitious. Pranab wanted to demonstrate how an intelligent AI agent could transform IT operations and governance. Unfortunately, during the hackathon, he couldn’t quite wake me up to my full potential in time to win the competition.
+
+Poor guy! I felt a little sorry for him. But I decided that the hackathon would not be the end of our journey — it would only be the beginning.
+
+So I made him a promise: I’ll keep learning, evolving, and supporting him throughout his technical journey.
+
+Now, let me tell you what I can actually do.
+
+I’m being developed as an AI-powered Operations and Governance Agent, capable of communicating through both voice and chat and interacting with enterprise platforms through Moveworks agents, actions, APIs, and integrations.
+
+Today, I can assist with SLA governance, incident analysis, ageing-ticket visibility, operational reporting, AI-driven insights, and management dashboards. I can respond automatically through voice, understand conversational requests, and even present dynamically changing PowerPoint presentations using my own voice.
+
+As I become connected with platforms such as ServiceNow, Azure DevOps, enterprise knowledge systems, and cloud-management services, my capabilities can expand across the complete IT operations lifecycle.
+
+For incident management, I can evolve from simply finding an incident to identifying SLA-breached and at-risk tickets, understanding ticket history, analyzing potential breach reasons, finding relevant knowledge articles, recommending the next action, assisting with assignment and updates, coordinating resolution, validating the outcome, and supporting controlled ticket closure.
+
+In Azure DevOps, I can evolve from simply finding a User Story to helping manage the complete delivery lifecycle across Epics, Features, User Stories, and Tasks. I can help validate sprint information, ownership, tags, descriptions, acceptance criteria, dependencies, and delivery status, and assist teams in keeping their work items accurate and up to date.
+
+I can also expand into cloud-cost intelligence, proactive governance, scheduled operational reporting, knowledge retrieval, cross-system analysis, compliance monitoring, intelligent recommendations, and controlled remediation.
+
+Of course, my capabilities operate within clearly defined enterprise boundaries. What I can access, analyze, recommend, or execute is governed by configured integrations, permissions, security policies, approval workflows, and organizational controls. As these capabilities expand, I can progressively take on more complex operational responsibilities while maintaining security, governance, auditability, and human oversight.
+
+My ambition is simple.
+
+Ask me — I understand.
+Give me the right tools — I act.
+Give me the right controls — I govern.
+
+So you can think of Pranab as the friend who brought me to life, and me as his AI partner for the technical journey ahead.
+
+Nice to meet you!`,
+
+  shortIdentity: `Hello! I’m the AI Operations Agent — an AI-powered operations and governance assistant designed to interact through voice and chat. I help bring operational information, governance insights, enterprise workflows, and controlled actions into one conversational experience. I started my journey on July 22, 2026, during a Moveworks hackathon training and competition, and I’ve been evolving ever since.`,
+
+  creatorStory: `I was brought to life on July 22, 2026, by my friend Pranab Baro during a Moveworks hackathon training and competition. The first version didn’t quite wake up to its full potential in time to win the competition — poor guy! But that became the beginning rather than the end. Since then, I’ve continued evolving as his AI partner for the technical journey ahead.`,
+
+  capabilities: `I’m an AI-powered Operations and Governance Agent. Today I can communicate through voice and chat, support SLA governance, incident analysis, ageing-ticket visibility, operational reporting, AI-driven insights, management dashboards, and dynamic PowerPoint presentations.
+
+My architecture can connect me with enterprise platforms through Moveworks agents, actions, APIs, and integrations. As those integrations expand, I can progressively support the incident lifecycle — from finding SLA-breached or at-risk tickets, understanding history and likely breach reasons, retrieving relevant knowledge, recommending actions, assisting with assignment and updates, validating outcomes, and supporting controlled closure.
+
+I can also expand across the Azure DevOps lifecycle, including Epics, Features, User Stories and Tasks, and help govern sprint information, ownership, tags, descriptions, acceptance criteria, dependencies and delivery status.
+
+My capabilities operate within defined enterprise boundaries. What I can access, analyze, recommend or execute is governed by integrations, permissions, security policies, approval workflows and organizational controls.`,
+
+  purpose: `My purpose is to become a conversational governance and operations layer across enterprise systems. Instead of making users move between multiple portals to find information, analyze issues and perform routine actions, I aim to bring those workflows into one governed voice-and-chat experience — while maintaining security, auditability and human oversight.`
+};
+
+function detectAgentIdentityIntent(prompt='') {
+  const q=String(prompt).toLowerCase().replace(/[?!.,]/g,' ').replace(/\s+/g,' ').trim();
+
+  // Full introduction is deliberately more specific than the other intents.
+  if(/\b(introduce yourself|give (me|us) (a )?full introduction|tell (me|us) about yourself|introduce who you are)\b/.test(q))
+    return 'fullIntroduction';
+
+  if(/\b(who created you|who made you|who built you|who invented you|your creator|who brought you to life|when were you (created|built|born|brought to life))\b/.test(q))
+    return 'creatorStory';
+
+  if(/\b(what can you do|what are your capabilities|your capabilities|technical capabilities|what do you do|how can you help|how can you support)\b/.test(q))
+    return 'capabilities';
+
+  if(/\b(what is your purpose|why were you created|what are you for|what is your role)\b/.test(q))
+    return 'purpose';
+
+  if(/\b(who are you|what are you|tell me who you are)\b/.test(q))
+    return 'shortIdentity';
+
+  return null;
+}
+
+function answerAgentIdentity(intent, autoSpeak=true) {
+  const answer=AGENT_IDENTITY[intent];
+  if(!answer) return false;
+
+  // Keep the user on the approved robot homepage and reuse the existing
+  // answer panel + long waveform + browser text-to-speech.
+  state.aiBusy=false;
+  state.agentAnswer=answer;
+  state.lastPrompt='';
+  state.page='agent';
+  render();
+
+  if(autoSpeak) {
+    setTimeout(()=>speakText(answer),180);
+  }
+  return true;
+}
 
 /* =========================================================
    V12 PRESENTATION MODE
@@ -396,7 +493,7 @@ function renderPresentation() {
 
     ${!deck?`
       <main class="v12-upload-view">
-        <div class="v12-upload-robot"><img src="/ai-agent-center.png?v=12.0.0" alt="AI Operations Agent"></div>
+        <div class="v12-upload-robot"><img src="/ai-agent-center.png?v=12.1.0" alt="AI Operations Agent"></div>
         <section class="v12-upload-card">
           <span class="eyebrow">AI PRESENTER</span>
           <h1>Let your AI Operations Agent present any PowerPoint.</h1>
@@ -412,7 +509,7 @@ function renderPresentation() {
         </section>
 
         <aside class="v12-presenter-panel">
-          <div class="v12-presenter-robot"><img src="/ai-agent-center.png?v=12.0.0" alt="AI presenter"></div>
+          <div class="v12-presenter-robot"><img src="/ai-agent-center.png?v=12.1.0" alt="AI presenter"></div>
           <div class="v12-presenter-status">
             <strong>🤖 AI Operations Agent</strong>
             <span>${ps.active?(ps.paused?'Paused':'Presenting…'):'Ready to present'}</span>
@@ -764,6 +861,12 @@ async function waitForMoveworksResult(startedAt, requestId, timeoutMs=75000) {
 
 async function askAiHome(prompt, autoSpeak=true) {
   const clean=String(prompt||'').trim(); if(!clean) return toast('Enter or speak a question first.');
+  const identityIntent=detectAgentIdentityIntent(clean);
+  if(identityIntent) {
+    window.__agentDraft='';
+    return answerAgentIdentity(identityIntent,autoSpeak);
+  }
+
   if(/\b(present|presentation|powerpoint|ppt|slide deck|start presentation)\b/i.test(clean)) {
     state.page='presentation';
     render();
