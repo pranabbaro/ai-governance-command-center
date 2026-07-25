@@ -1,29 +1,21 @@
-# AI Operations Agent V10.4
+# AI Operations Agent V10.6
 
-This package keeps the existing Moveworks, ServiceNow, SLA governance, DevOps governance, assignment, notification, EOD reporting, dashboard callback and AI query features.
+Pixel-matched enterprise landing page based on the approved visual.
 
-## V10.4 home-page updates
-
-- Full-body 3D AI robot presented as one centered image
-- No left-side crop or unwanted colour layer
-- Subtle floating, glow and speaking-wave animations
-- Greeting may overlap the image intentionally
-- Voice question remains on the home page
-- Voice answer is spoken automatically
-- Pressing the microphone interrupts the current answer and begins listening again
-- Pause, Stop, Copy, Close and View Full Analysis controls
+## Included
+- Full-screen 3D robot and digital globe visual
+- Left navigation, connected status, command center access
+- Dynamic response panel with Pause, Stop, Copy and Full Analysis
+- Voice recognition and automatic spoken response
+- Microphone interrupts current speech and starts the next question
+- SLA, Incident, DevOps and Knowledge Base quick actions
+- Existing Moveworks, ServiceNow, Azure DevOps and governance backend retained
 
 ## Deploy
+1. Extract the package into the GitHub repository.
+2. Commit and push to `main`.
+3. Wait for Azure App Service deployment.
+4. Hard refresh with Ctrl+Shift+R.
+5. Verify `/health` reports version `10.6.0`.
 
-Replace the files in your GitHub repository and push to `main`.
-
-```bash
-git add .
-git commit -m "Deploy centered 3D AI Operations Agent V10.4"
-git pull --rebase origin main
-git push origin main
-```
-
-After Azure App Service deploys, hard refresh with `Ctrl + Shift + R`.
-
-Verify `/health` returns version `10.5.0`.
+Use Microsoft Edge or Google Chrome and allow microphone access.
