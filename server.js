@@ -312,7 +312,7 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 200, {
       status: 'ok',
       service: 'ai-governance-command-center',
-      version: '8.2.0',
+      version: '9.0.0',
       moveworksConfigured: Boolean(process.env.MOVEWORKS_DASHBOARD_URL || process.env.MOVEWORKS_AGEING_URL || process.env.MOVEWORKS_SLA_URL || process.env.MOVEWORKS_TRIGGER_URL),
       aiConfigured: Boolean(process.env.MOVEWORKS_AI_URL || process.env.MOVEWORKS_TRIGGER_URL),
       triggerConfigured: Boolean(process.env.MOVEWORKS_TRIGGER_URL),
@@ -324,7 +324,7 @@ const server = http.createServer(async (req, res) => {
   try {
     if (url.pathname === '/api/config' && req.method === 'GET') {
       return sendJson(res, 200, {
-        appName: 'AI Governance Command Center',
+        appName: 'AI Operations Agent + Governance Command Center',
         eventName: 'Moveworks Hackathon',
         refreshSeconds: 300,
         integrations: {

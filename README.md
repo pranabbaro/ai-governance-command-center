@@ -1,3 +1,37 @@
+# AI Operations Agent MVP + AI Governance Command Center
+
+**Version 9.0.0**
+
+This package preserves the working Moveworks/ServiceNow governance integration from V8.2 and adds an attractive voice + chat MVP experience on top.
+
+## New in MVP V9
+
+- New **AI Operations Agent** landing page (default home page).
+- Browser voice input using Web Speech Recognition (Chrome/Edge recommended).
+- Voice transcript is submitted to the same existing governance prompt flow.
+- Dedicated **AI Operations Result** page for all responses.
+- Immediate live answers for SLA/ageing KPI questions without waiting for the long AI workflow.
+- Immediate breached/at-risk/ageing list views when detailed records are present in the callback.
+- Existing Moveworks AI RCA workflow remains available for analytical questions such as “Why are our SLAs breaching?”.
+- **Read aloud** using browser text-to-speech.
+- Existing Command Center, Ageing, SLA Intelligence, DevOps Governance, Ask Governance AI, callback APIs, assignment/notify hooks and EOD workflow are retained.
+
+## Demo prompts
+
+- “How many SLA breaches do we have?”
+- “Show me all breached SLA tickets.”
+- “Show me SLA records at risk.”
+- “Why are our SLA tickets breaching?”
+- “Show me ageing tickets.”
+
+> Ticket-number lists appear automatically when the Moveworks callback includes detailed ticket/SLA records. The current count-only callback remains supported.
+
+## Voice support
+
+The MVP uses the browser Web Speech API. Chrome and Edge are recommended. No speech key is stored in the app. If the browser does not expose SpeechRecognition, chat remains fully functional.
+
+---
+
 ## V8.2.0
 - Immediate KPI answers for SLA count/number questions.
 - No long AI workflow for factual SLA counts.

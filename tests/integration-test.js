@@ -35,7 +35,7 @@ function request(url, options={}) {
   const child=spawn(process.execPath,['server.js'],{cwd:root,env:{...process.env,PORT:String(appPort),MOVEWORKS_TRIGGER_URL:`http://127.0.0.1:${upstreamPort}/trigger`,MOVEWORKS_API_KEY:'test-mw-key',DEFAULT_NOTIFICATION_EMAIL:'demo.user@example.com',RESULT_STORE_PATH:resultStorePath,MOVEWORKS_ASSIGN_URL:`http://127.0.0.1:${upstreamPort}/assign`,MOVEWORKS_NOTIFY_URL:`http://127.0.0.1:${upstreamPort}/notify`,MOVEWORKS_EOD_URL:`http://127.0.0.1:${upstreamPort}/eod`},stdio:['ignore','pipe','pipe']});
   try {
     await new Promise((resolve,reject)=>{const t=setTimeout(()=>reject(new Error('Server startup timeout')),8000);child.stdout.on('data',d=>{if(String(d).includes('listening')){clearTimeout(t);resolve();}});child.on('exit',c=>reject(new Error(`server exited ${c}`)));});
-    let r=await request(`http://127.0.0.1:${appPort}/health`); if(r.status!==200||!r.body.moveworksConfigured||r.body.version!=='8.2.0') throw new Error('health failed');
+    let r=await request(`http://127.0.0.1:${appPort}/health`); if(r.status!==200||!r.body.moveworksConfigured||r.body.version!=='9.0.0') throw new Error('health failed');
     r=await request(`http://127.0.0.1:${appPort}/api/dashboard`); if(r.status!==200||r.body.mode!=='trigger-only'||r.body.source!=='moveworks-trigger') throw new Error('trigger-only dashboard state failed');
     r=await request(`http://127.0.0.1:${appPort}/api/moveworks/test`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt:'Run AI Ticket Governance'})}); if(r.status!==200||r.body.moveworks?.status!=='RECEIVED') throw new Error('Moveworks listener test failed');
     if(lastTriggerBody?.user_email!=='demo.user@example.com'||lastTriggerBody?.prompt!=='Run AI Ticket Governance') throw new Error('Webhook payload shape failed');
@@ -50,6 +50,7 @@ function request(url, options={}) {
     r=await request(`http://127.0.0.1:${appPort}/api/tickets/INC1001/notify`,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'}); if(r.status!==200||!r.body.success) throw new Error('notify proxy failed');
     r=await request(`http://127.0.0.1:${appPort}/api/reports/eod`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({morning:9})}); if(r.status!==200||!r.body.success) throw new Error('EOD proxy failed');
     const page=await fetch(`http://127.0.0.1:${appPort}/`).then(r=>r.text()); if(!page.includes('Moveworks Hackathon')) throw new Error('page branding failed');
+    const appJs=await fetch(`http://127.0.0.1:${appPort}/app.js`).then(r=>r.text()); if(!appJs.includes('AI Operations Agent')||!appJs.includes('startVoice')||!appJs.includes('renderResults')) throw new Error('MVP agent UI missing');
     console.log('HTTP integration test passed.');
   } finally {
     child.kill(); mock.close(); try { require('node:fs').unlinkSync(resultStorePath); } catch {}

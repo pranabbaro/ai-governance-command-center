@@ -1,7 +1,7 @@
 'use strict';
 
 const state = {
-  page: 'command', search: '', selectedTicket: null, loading: true, live: false, triggerOnly: false, statusMessage: '', error: '', aiBusy: false,
+  page: 'agent', search: '', selectedTicket: null, loading: true, live: false, triggerOnly: false, statusMessage: '', error: '', aiBusy: false,
   lastRefresh: new Date(), morning: 0, updated: 0, closed: 0, pending: 0,
   ageingTotal: 0, incidentCount: 0, ritmCount: 0, taskCount: 0,
   slaAtRisk: 0, slaCritical: 0, slaBreached: 0, slaTotalAttention: 0, slaCompliance: null,
@@ -10,8 +10,8 @@ const state = {
 };
 
 const nav = [
-  ['command','Command Center','⌂'], ['ageing','Ageing Tickets','◷'], ['sla','SLA Intelligence','✓'],
-  ['devops','DevOps Governance','▣'], ['ai','Ask Governance AI','✦']
+  ['agent','AI Operations Agent','✦'], ['command','Command Center','⌂'], ['ageing','Ageing Tickets','◷'], ['sla','SLA Intelligence','✓'],
+  ['devops','DevOps Governance','▣'], ['ai','Ask Governance AI','◈']
 ];
 
 const app = document.getElementById('app');
@@ -46,7 +46,7 @@ function liveBanner() {
 }
 
 function layout(content) {
-  const title = nav.find(x => x[0] === state.page)?.[1] || 'Command Center';
+  const title = state.page==='results' ? 'AI Operations Result' : (nav.find(x => x[0] === state.page)?.[1] || 'Command Center');
   return `<div class="shell"><aside class="sidebar">
     <div class="brand"><div class="brandmark">✦</div><div><strong>AI Governance</strong><span>Command Center</span></div></div>
     <div class="hackathon-badge">Moveworks Hackathon</div>
@@ -117,8 +117,122 @@ function renderAi(answer='') {
   </div><div class="card"><h2>Connected Intelligence</h2><div class="source"><strong>ServiceNow</strong><span>INC, RITM, TASK and SLA</span></div><div class="source"><strong>Azure DevOps</strong><span>Epic, Feature, Story and Task hygiene</span></div><div class="source"><strong>Moveworks Agent Studio</strong><span>Reasoning, governance actions and notifications</span></div></div></section>`);
 }
 
+
+function agentTicketRows(kind='breached') {
+  const slaRows = Array.isArray(state.slaBreaches) ? state.slaBreaches : [];
+  if (kind === 'breached' && slaRows.length) return slaRows.map((x,i)=>({
+    id:x.id||x.number||x.task?.display_value||x.task||`SLA-${i+1}`,
+    title:x.summary||x.short_description||x.description||'Breached SLA record',
+    team:x.team||x.assignment_group?.display_value||x.assignment_group||'',
+    assignee:x.assignee||x.assigned_to?.display_value||x.assigned_to||'',
+    status:'Breached',
+    risk:x.risk||x.risk_score||x.percentage||''
+  }));
+  const rows = Array.isArray(state.tickets) ? state.tickets : [];
+  return rows.filter(t => kind === 'breached' ? String(t.sla||'').toLowerCase().includes('breach') : kind === 'atrisk' ? String(t.sla||'').toLowerCase().includes('risk') : true);
+}
+
+function localOperationalResult(prompt) {
+  const clean=String(prompt||'').trim();
+  const q=clean.toLowerCase().replace(/[’']/g,'').replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
+  const direct=liveKpiAnswer(clean,state);
+  if(direct) return {kind:'kpi', answer:direct};
+  const wantsShow=/\b(show|list|display|give me|find|get)\b/.test(q);
+  const mentionsBreach=/\b(breach|breached|breaches)\b/.test(q);
+  const mentionsSla=/\bsla\b/.test(q);
+  if(wantsShow && mentionsBreach && mentionsSla) {
+    const rows=agentTicketRows('breached');
+    return {kind:'sla-list', rows, answer:`Found **${state.slaBreached} breached SLA records** in the latest live governance result.${rows.length?' Ticket details are shown below.':' The current callback contains the count, but not individual ticket records yet.'}`};
+  }
+  if(wantsShow && /\b(at risk|risk)\b/.test(q) && mentionsSla) {
+    const rows=agentTicketRows('atrisk');
+    return {kind:'sla-list', rows, answer:`Found **${state.slaAtRisk} SLA records at risk** in the latest live governance result.${rows.length?' Ticket details are shown below.':' The current callback contains the count, but not individual ticket records yet.'}`};
+  }
+  if(wantsShow && /\b(ageing|aging)\b/.test(q)) {
+    return {kind:'ageing-list', rows:state.tickets||[], answer:`Found **${state.ageingTotal} ageing tickets** in the latest live governance result.${state.tickets.length?' Ticket details are shown below.':' The current callback contains the count, but not individual ticket records yet.'}`};
+  }
+  return null;
+}
+
+function agentVisual() {
+  return `<div class="agent-portrait" aria-hidden="true">
+    <div class="agent-halo halo-one"></div><div class="agent-halo halo-two"></div>
+    <div class="agent-head"><div class="agent-face"><span></span><span></span><i></i></div></div>
+    <div class="agent-core"><b>AI</b></div>
+    <div class="agent-node n1"></div><div class="agent-node n2"></div><div class="agent-node n3"></div><div class="agent-node n4"></div>
+  </div>`;
+}
+
+function renderAgent() {
+  const speechSupported=Boolean(window.SpeechRecognition||window.webkitSpeechRecognition);
+  return layout(`<section class="agent-home">
+    <div class="agent-hero">
+      <div class="agent-copy"><span class="eyebrow">VOICE + CHAT OPERATIONS ASSISTANT</span><h2>Meet your AI Operations Agent</h2><p>Ask a question or speak naturally. The agent uses your existing Moveworks governance workflows and live ServiceNow results.</p>
+        <div class="system-pills"><span>● Moveworks</span><span>● ServiceNow</span><span class="muted-pill">Azure DevOps · next</span></div>
+      </div>${agentVisual()}
+    </div>
+    <div class="agent-prompt-card">
+      <label for="agentPrompt">What can I help you with?</label>
+      <div class="agent-prompt-row"><textarea id="agentPrompt" rows="2" placeholder="Ask about SLA breaches, at-risk tickets, ageing backlog or root cause analysis...">${escapeHtml(window.__agentDraft||'')}</textarea>
+        <button class="voice-btn ${window.__voiceListening?'listening':''}" data-action="startVoice" title="${speechSupported?'Speak to the AI agent':'Voice recognition is not supported in this browser'}" ${speechSupported?'':'disabled'}>🎤<span>${window.__voiceListening?'Listening…':'Speak'}</span></button>
+        <button class="send-btn" data-action="agentAsk">➜<span>Ask Agent</span></button>
+      </div>
+      <div id="voiceStatus" class="voice-status">${speechSupported?'Voice is ready. Speak naturally or type your request.':'Voice input requires a browser with Web Speech Recognition (Chrome/Edge recommended).'}</div>
+    </div>
+    <div class="quick-grid">
+      <button class="quick-action live-cap" data-action="agentPrompt" data-arg="How many SLA breaches do we have?"><strong>SLA breach count</strong><span>Immediate live KPI</span></button>
+      <button class="quick-action live-cap" data-action="agentPrompt" data-arg="Show me all breached SLA tickets"><strong>Breached SLA tickets</strong><span>Count + ticket numbers when returned</span></button>
+      <button class="quick-action live-cap" data-action="agentPrompt" data-arg="Why are our SLA tickets breaching?"><strong>AI breach analysis</strong><span>Moveworks RCA + recommendations</span></button>
+      <button class="quick-action live-cap" data-action="agentPrompt" data-arg="Show me ageing tickets"><strong>Ageing tickets</strong><span>Live governance backlog</span></button>
+    </div>
+    <div class="roadmap-strip"><span><b>Next connectors:</b></span><span>Azure DevOps user stories</span><span>Knowledge Base search</span><span>Cloud cost</span><span>Ticket close with approval</span></div>
+  </section>`);
+}
+
+function resultTicketTable(rows=[]) {
+  if(!rows.length) return `<div class="result-note">Individual ticket records are not included in the current callback yet. The MVP is ready to render ticket numbers automatically once the Moveworks callback includes the records.</div>`;
+  return `<div class="result-table"><table><thead><tr><th>Ticket</th><th>Status</th><th>Team / Owner</th><th>Risk</th></tr></thead><tbody>${rows.slice(0,20).map(x=>`<tr><td><strong>${escapeHtml(x.id||x.number||'')}</strong><div class="muted">${escapeHtml(x.title||x.summary||'')}</div></td><td>${badge(x.status||x.sla||'Breached','danger')}</td><td>${escapeHtml(x.team||'')}<div class="muted">${escapeHtml(x.assignee||'')}</div></td><td>${escapeHtml(x.risk||'—')}</td></tr>`).join('')}</tbody></table></div>`;
+}
+
+function renderResults() {
+  const prompt=window.__lastAiQuestion||window.__agentPrompt||'';
+  const answer=window.__aiAnswer||'';
+  const local=window.__agentLocalResult||null;
+  const rows=local?.rows||[];
+  const isCount=local?.kind==='kpi';
+  return layout(`<section class="result-page">
+    <div class="result-top"><button class="back-btn" data-action="backAgent">← Back to Agent</button><div><span class="eyebrow">AI OPERATIONS RESULT</span><h2>${isCount?'Live governance answer':'Moveworks AI response'}</h2></div><button class="read-btn" data-action="readAloud">🔊 Read aloud</button></div>
+    <div class="asked-card"><span>You asked</span><strong>“${escapeHtml(prompt)}”</strong></div>
+    ${state.aiBusy?`<div class="thinking-card"><div class="thinking-orb">✦</div><div><strong>Analyzing live operations data…</strong><span>Moveworks is running the governance workflow and the result will appear here.</span></div></div>`:''}
+    ${answer?`<div class="result-answer"><div class="result-answer-label">✦ AI Operations Agent</div><div class="result-answer-content">${formatAiText(answer)}</div></div>`:''}
+    <div class="result-kpis">${metric('SLA Breached',state.slaBreached,'Live SLA records','red')}${metric('Critical SLA',state.slaCritical,'Immediate attention','red')}${metric('SLA At Risk',state.slaAtRisk,'Approaching breach','orange')}${metric('Ageing Tickets',state.ageingTotal,'Governance backlog','purple')}</div>
+    ${(local?.kind==='sla-list'||local?.kind==='ageing-list')?`<section class="card"><div class="cardhead"><div><h2>${local.kind==='sla-list'?'Ticket details':'Ageing ticket details'}</h2><p>Live records returned by the governance data feed</p></div></div>${resultTicketTable(rows)}</section>`:''}
+    ${state.aiBriefing && !answer.includes(String(state.aiBriefing).slice(0,30)) && !isCount?`<section class="card ai-card-shell">${aiInsightCard(true)}</section>`:''}
+    <div class="followup-card"><label>Ask a follow-up</label><div class="followup-row"><input id="resultPrompt" placeholder="Ask another operations question..."><button class="voice-mini" data-action="startVoiceResult">🎤</button><button class="btn primary" data-action="resultAsk">Ask</button></div></div>
+  </section>`);
+}
+
+function startVoice(targetId='agentPrompt') {
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR) return toast('Voice recognition is not supported in this browser. Chrome or Edge is recommended.');
+  if(window.__recognition) { try{window.__recognition.stop();}catch{} window.__recognition=null; }
+  const recognition=new SR(); window.__recognition=recognition; recognition.lang='en-IN'; recognition.interimResults=true; recognition.continuous=false;
+  let finalText=''; window.__voiceListening=true; render();
+  recognition.onresult=(event)=>{let interim=''; for(let i=event.resultIndex;i<event.results.length;i++){const t=event.results[i][0].transcript;if(event.results[i].isFinal)finalText+=t;else interim+=t;} const el=document.getElementById(targetId); if(el) el.value=(finalText||interim).trim(); window.__agentDraft=(finalText||interim).trim();};
+  recognition.onerror=(event)=>{window.__voiceListening=false; window.__recognition=null; toast(`Voice input: ${event.error}`); render();};
+  recognition.onend=()=>{window.__voiceListening=false; window.__recognition=null; const text=(finalText||window.__agentDraft||'').trim(); render(); if(text){setTimeout(()=>askAi(text),250);}};
+  try{recognition.start();}catch(err){window.__voiceListening=false; toast(err.message);}
+}
+
+function readAloud() {
+  if(!('speechSynthesis' in window)) return toast('Text-to-speech is not supported in this browser.');
+  const text=String(window.__aiAnswer||'').replace(/\*\*/g,'').replace(/[#*_`]/g,' ').trim();
+  if(!text) return toast('There is no response to read yet.');
+  window.speechSynthesis.cancel(); const utter=new SpeechSynthesisUtterance(text); utter.lang='en-IN'; utter.rate=0.95; window.speechSynthesis.speak(utter);
+}
+
 function render() {
-  if(state.page==='ageing') app.innerHTML=renderAgeing(); else if(state.page==='sla') app.innerHTML=renderSla(); else if(state.page==='devops') app.innerHTML=renderDevops(); else if(state.page==='ai') app.innerHTML=renderAi(window.__aiAnswer||''); else app.innerHTML=renderCommand();
+  if(state.page==='agent') app.innerHTML=renderAgent(); else if(state.page==='results') app.innerHTML=renderResults(); else if(state.page==='ageing') app.innerHTML=renderAgeing(); else if(state.page==='sla') app.innerHTML=renderSla(); else if(state.page==='devops') app.innerHTML=renderDevops(); else if(state.page==='ai') app.innerHTML=renderAi(window.__aiAnswer||''); else app.innerHTML=renderCommand();
 }
 
 async function api(path, options={}) {
@@ -208,14 +322,13 @@ async function waitForMoveworksResult(startedAt, requestId, timeoutMs=75000) {
 
 async function askAi(prompt) {
   const clean=String(prompt||'').trim(); if(!clean) return toast('Enter a question first.');
-  state.page='ai';
-  window.__lastAiQuestion=clean;
+  window.__lastAiQuestion=clean; window.__agentPrompt=clean; window.__agentDraft=''; window.__agentLocalResult=null;
 
-  // Quantitative governance questions should return the live KPI directly instead of a long RCA narrative.
-  const instant=liveKpiAnswer(clean,state);
-  if(instant) { window.__aiAnswer=instant; render(); return; }
+  // Fast local operational answers: counts and list requests should appear immediately.
+  const local=localOperationalResult(clean);
+  if(local) { window.__agentLocalResult=local; window.__aiAnswer=local.answer; state.page='results'; state.aiBusy=false; render(); return; }
 
-  state.aiBusy=true; window.__aiAnswer=''; render();
+  state.page='results'; state.aiBusy=true; window.__aiAnswer=''; render();
   try {
     const result=await api('/api/ai/query',{method:'POST',body:JSON.stringify({prompt:clean})});
     if(result.mode==='webhook-trigger') {
@@ -224,14 +337,15 @@ async function askAi(prompt) {
       if(callback) {
         window.__aiAnswer=resultSummary(callback,clean);
         await refreshDashboard(false);
+        state.page='results';
       } else {
-        window.__aiAnswer='Moveworks accepted the request and the workflow is still running. The dashboard will refresh automatically when the callback result arrives.';
+        window.__aiAnswer='Moveworks accepted the request and the workflow is still running. The result page will refresh when the callback is received.';
       }
     } else {
       window.__aiAnswer=result.answer||'No AI response returned.';
     }
   } catch(err) { window.__aiAnswer=`Unable to contact Moveworks AI: ${err.message}`; }
-  finally { state.aiBusy=false; render(); }
+  finally { state.aiBusy=false; state.page='results'; render(); }
 }
 
 function openAssign(ticketId) {
@@ -243,6 +357,13 @@ function openAssign(ticketId) {
 
 async function handleAction(action,arg) {
   if(action==='refreshData'){await refreshDashboard(true);return;}
+  if(action==='agentAsk') return askAi(document.getElementById('agentPrompt')?.value||'');
+  if(action==='agentPrompt') return askAi(arg);
+  if(action==='startVoice') return startVoice('agentPrompt');
+  if(action==='startVoiceResult') return startVoice('resultPrompt');
+  if(action==='resultAsk') return askAi(document.getElementById('resultPrompt')?.value||'');
+  if(action==='backAgent'){state.page='agent';window.__aiAnswer='';window.__agentLocalResult=null;render();return;}
+  if(action==='readAloud') return readAloud();
   if(action==='nav'){state.page=arg;render();return;} if(action==='assign')return openAssign(arg); if(action==='closeModal'){document.getElementById('assignModal')?.remove();return;}
   if(action==='confirmAssign') { const input=document.getElementById('assigneeSelect'); if(!state.selectedTicket||!input?.value.trim()) return toast('Enter an assignee.'); try { await api(`/api/tickets/${encodeURIComponent(state.selectedTicket.id)}/assign`,{method:'POST',body:JSON.stringify({assignee:input.value.trim()})}); toast(`${state.selectedTicket.id} assignment requested through Moveworks`); document.getElementById('assignModal')?.remove(); await refreshDashboard(); } catch(err){toast(err.message);} return; }
   if(action==='notifyTicket'){try{await api(`/api/tickets/${encodeURIComponent(arg)}/notify`,{method:'POST',body:'{}'});toast(`Moveworks notification triggered for ${arg}`);}catch(err){toast(err.message);}return;}
@@ -255,7 +376,8 @@ async function handleAction(action,arg) {
 }
 
 document.addEventListener('click',e=>{const navEl=e.target.closest('[data-nav]');if(navEl){state.page=navEl.dataset.nav;render();return;}const actionEl=e.target.closest('[data-action]');if(actionEl)handleAction(actionEl.dataset.action,actionEl.dataset.arg||'');});
-document.addEventListener('input',e=>{if(e.target.id==='ticketSearch'){state.search=e.target.value;render();const el=document.getElementById('ticketSearch');if(el){el.focus();el.setSelectionRange(state.search.length,state.search.length);}}});
+document.addEventListener('input',e=>{if(e.target.id==='ticketSearch'){state.search=e.target.value;render();const el=document.getElementById('ticketSearch');if(el){el.focus();el.setSelectionRange(state.search.length,state.search.length);}} if(e.target.id==='agentPrompt') window.__agentDraft=e.target.value;});
+document.addEventListener('keydown',e=>{if((e.target.id==='agentPrompt'||e.target.id==='resultPrompt')&&e.key==='Enter'&&!e.shiftKey){e.preventDefault();askAi(e.target.value);}});
 
 setInterval(()=>refreshDashboard(false),5*60*1000);
 render(); refreshDashboard(false);
