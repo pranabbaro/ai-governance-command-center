@@ -1,8 +1,8 @@
 {
   "name": "ai-governance-command-center-appservice",
   "private": true,
-  "version": "10.3.0",
-  "description": "AI Operations Agent MVP + existing Moveworks AI Governance Command Center for Azure App Service",
+  "version": "10.4.0",
+  "description": "Centered 3D AI Operations Agent + existing Moveworks AI Governance Command Center for Azure App Service",
   "engines": {
     "node": ">=20"
   },

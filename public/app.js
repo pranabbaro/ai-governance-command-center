@@ -165,57 +165,54 @@ function agentVisual() {
 
 function renderAgent() {
   const speechSupported=Boolean(window.SpeechRecognition||window.webkitSpeechRecognition);
-  const hasResponse=Boolean(window.__homeResponse);
-  const speaking=Boolean(window.__speechActive);
-  const paused=Boolean(window.__speechPaused);
-  return `<div class="agent-v103">
-    <header class="agent-v103-header">
-      <div class="agent-v103-brand"><span class="agent-v103-logo">✦</span><div><strong>AI Operations Agent</strong><small>Intelligent operations assistant</small></div></div>
-      <div class="agent-v103-header-actions"><span class="agent-v103-connected"><i></i> Systems connected</span><button class="agent-v103-dashboard" data-nav="command">Open Command Center</button></div>
-    </header>
-
-    <aside class="agent-v103-side" aria-label="Agent navigation">
-      <button class="active" data-nav="agent"><span>⌂</span><small>Home</small></button>
-      <button data-nav="sla"><span>◷</span><small>SLA</small></button>
-      <button data-nav="devops"><span>∞</span><small>DevOps</small></button>
-      <button data-nav="ai"><span>◈</span><small>Ask AI</small></button>
+  const panelOpen=Boolean(window.__homeAiAnswer||state.aiBusy);
+  const speaking=Boolean(window.__voiceSpeaking);
+  return `<div class="v104-shell">
+    <aside class="v104-sidebar">
+      <div class="v104-nav-logo">✦</div>
+      <button class="v104-nav active" data-nav="agent"><span>⌂</span><b>Home</b></button>
+      <button class="v104-nav" data-nav="command"><span>◷</span><b>History</b></button>
+      <button class="v104-nav" data-nav="ai"><span>☆</span><b>Favorites</b></button>
+      <button class="v104-nav" data-nav="sla"><span>▣</span><b>Knowledge<br>Base</b></button>
+      <button class="v104-nav" data-nav="command"><span>▥</span><b>Reports</b></button>
+      <button class="v104-nav v104-settings" data-nav="devops"><span>⚙</span><b>Settings</b></button>
+      <div class="v104-user"><div class="v104-avatar">P</div><strong>Pranab Baro</strong><small>Administrator</small></div>
     </aside>
-
-    <main class="agent-v103-main">
-      <section class="agent-v103-stage">
-        <div class="agent-v103-greeting ${hasResponse?'is-hidden':''}"><strong>Hello! 👋</strong><span>I’m your AI Operations Agent.<br>How can I assist you today?</span></div>
-        <img src="/assets/ai-operations-agent-full-body.png?v=10.3.0" alt="Full-body 3D AI Operations Agent" />
-        <div class="agent-v103-glow"></div>
-
-        ${hasResponse?`<article class="agent-v103-response ${window.__homeBusy?'is-busy':''}">
-          <header><div><b>🤖</b><strong>AI Operations Agent</strong></div><button data-action="closeHomeResponse" title="Close response">×</button></header>
-          <div class="agent-v103-speaking"><span>🔊</span><div><strong>${window.__homeBusy?'Analyzing…':speaking?(paused?'Paused':'Speaking…'):'Response'}</strong><div class="agent-v103-wave ${speaking&&!paused?'active':''}">${'<i></i>'.repeat(18)}</div></div></div>
-          <div class="agent-v103-response-text">${formatAiText(window.__homeResponse)}</div>
-          <div class="agent-v103-response-actions">
-            <button data-action="pauseResumeSpeech" ${speaking?'':'disabled'}>${paused?'▶ Resume':'⏸ Pause'}</button>
-            <button data-action="stopSpeech" ${speaking?'':'disabled'}>■ Stop</button>
-            <button data-action="copyHomeResponse">▣ Copy</button>
+    <main class="v104-main">
+      <header class="v104-topbar">
+        <div class="v104-brand"><div class="v104-brand-icon">✦</div><div><strong>AI Operations Agent</strong><small>Intelligent operations assistant</small></div></div>
+        <div class="v104-top-actions"><span class="v104-connected">● Systems connected</span><button data-nav="command">Open Command Center</button></div>
+      </header>
+      <section class="v104-stage">
+        <div class="v104-greeting"><span>Hello! 👋</span><h1>I’m your<br>AI Operations Agent.</h1><p>How can I assist you today?</p></div>
+        <div class="v104-image-wrap"><div class="v104-halo"></div><img src="/ai-agent-center.png?v=10.4.0" alt="Full-body 3D AI Operations Agent"></div>
+        <div class="v104-prompt-wrap">
+          <button class="v104-mic ${window.__voiceListening?'listening':''}" data-action="startVoice" ${speechSupported?'':'disabled'} title="${speechSupported?'Speak to the AI agent':'Use Chrome or Edge for voice input'}">${window.__voiceListening?'◉':'🎤'}</button>
+          <input id="agentPrompt" value="${escapeHtml(window.__agentDraft||'')}" placeholder="Ask about incidents, SLA, DevOps, cloud cost or anything...">
+          <button class="v104-send" data-action="agentAsk">➜</button>
+          <div class="v104-voice-hint">${window.__voiceListening?'Listening… speak now':'Press the microphone to speak'}</div>
+        </div>
+        <div class="v104-quick-grid">
+          <button data-action="agentPrompt" data-arg="How many SLA breaches do we have?"><span class="red">!</span><b>SLA</b><small>SLA Breaches</small></button>
+          <button data-action="agentPrompt" data-arg="Show me open incidents"><span class="amber">△</span><b>Incidents</b><small>Open Incidents</small></button>
+          <button data-nav="devops"><span class="purple">∞</span><b>DevOps</b><small>Work Items</small></button>
+          <button data-action="agentPrompt" data-arg="Find a knowledge base article"><span class="green">▣</span><b>Knowledge Base</b><small>Search Articles</small></button>
+        </div>
+        ${panelOpen?`<aside class="v104-response-panel">
+          <div class="v104-response-head"><strong>🤖 AI Operations Agent</strong><button data-action="closeHomeResponse">×</button></div>
+          <div class="v104-speaking">🔊 ${state.aiBusy?'Analyzing…':speaking?'Speaking…':'Response ready'}</div>
+          <div class="v104-wave ${speaking?'active':''}">${Array.from({length:28},(_,i)=>`<i style="--i:${i}"></i>`).join('')}</div>
+          <div class="v104-response-body">${state.aiBusy?'Working with your live governance data…':formatAiText(window.__homeAiAnswer||'')}</div>
+          <div class="v104-response-controls">
+            <button data-action="pauseSpeech">⏸ Pause</button><button data-action="stopSpeech">■ Stop</button><button data-action="copyHomeResponse">▣ Copy</button>
           </div>
-          <button class="agent-v103-full" data-action="openFullAnalysis">View Full Analysis ↗</button>
-        </article>`:''}
+          <button class="v104-full" data-action="viewFullAnalysis">View Full Analysis ↗</button>
+        </aside>`:''}
       </section>
-
-      <section class="agent-v103-quick" aria-label="Quick actions">
-        <button data-action="quickAgent" data-arg="How many SLA breaches do we have?"><span>⚠</span><div><strong>SLA</strong><small>SLA Breaches</small></div></button>
-        <button data-action="quickAgent" data-arg="Show open incidents"><span>△</span><div><strong>Incidents</strong><small>Open Incidents</small></div></button>
-        <button data-action="quickAgent" data-arg="Show DevOps user stories"><span>∞</span><div><strong>DevOps</strong><small>Work Items</small></div></button>
-        <button data-action="quickAgent" data-arg="Find a relevant knowledge base article"><span>▤</span><div><strong>Knowledge Base</strong><small>Search Articles</small></div></button>
-      </section>
-
-      <section class="agent-v103-command">
-        <button class="agent-v103-mic ${window.__voiceListening?'listening':''}" data-action="startVoice" title="${speechSupported?'Speak to the AI agent':'Voice recognition is not supported in this browser'}" ${speechSupported?'':'disabled'}>${window.__voiceListening?'◉':'🎤'}</button>
-        <textarea id="agentPrompt" rows="1" placeholder="Ask about incidents, SLA, DevOps, cloud cost or anything...">${escapeHtml(window.__agentDraft||'')}</textarea>
-        <button class="agent-v103-send" data-action="agentAsk" title="Ask Agent">➜</button>
-      </section>
-      <div class="agent-v103-hint">${window.__voiceListening?'Listening… speak naturally.':'Voice questions are answered aloud automatically. Press the microphone again to interrupt and ask the next question.'}</div>
     </main>
   </div>`;
 }
+
 function resultTicketTable(rows=[]) {
   if(!rows.length) return `<div class="result-note">Individual ticket records are not included in the current callback yet. The MVP is ready to render ticket numbers automatically once the Moveworks callback includes the records.</div>`;
   return `<div class="result-table"><table><thead><tr><th>Ticket</th><th>Status</th><th>Team / Owner</th><th>Risk</th></tr></thead><tbody>${rows.slice(0,20).map(x=>`<tr><td><strong>${escapeHtml(x.id||x.number||'')}</strong><div class="muted">${escapeHtml(x.title||x.summary||'')}</div></td><td>${badge(x.status||x.sla||'Breached','danger')}</td><td>${escapeHtml(x.team||'')}<div class="muted">${escapeHtml(x.assignee||'')}</div></td><td>${escapeHtml(x.risk||'—')}</td></tr>`).join('')}</tbody></table></div>`;
@@ -239,100 +236,35 @@ function renderResults() {
   </section>`);
 }
 
-function stopCurrentSpeech() {
-  if('speechSynthesis' in window) window.speechSynthesis.cancel();
-  window.__speechUtterance=null;
-  window.__speechActive=false;
-  window.__speechPaused=false;
-}
-
 function startVoice(targetId='agentPrompt') {
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   if(!SR) return toast('Voice recognition is not supported in this browser. Chrome or Edge is recommended.');
-
-  // Pressing the microphone always interrupts the current spoken response first.
-  stopCurrentSpeech();
+  stopSpeech();
   if(window.__recognition) { try{window.__recognition.stop();}catch{} window.__recognition=null; }
-
-  const recognition=new SR();
-  window.__recognition=recognition;
-  recognition.lang='en-IN';
-  recognition.interimResults=true;
-  recognition.continuous=false;
-  let finalText='';
-  window.__agentDraft='';
-  window.__voiceListening=true;
-  render();
-
-  recognition.onresult=(event)=>{
-    let interim='';
-    for(let i=event.resultIndex;i<event.results.length;i++){
-      const t=event.results[i][0].transcript;
-      if(event.results[i].isFinal) finalText+=t; else interim+=t;
-    }
-    const value=(finalText||interim).trim();
-    const el=document.getElementById(targetId);
-    if(el) el.value=value;
-    window.__agentDraft=value;
-  };
-  recognition.onerror=(event)=>{
-    window.__voiceListening=false;
-    window.__recognition=null;
-    toast(`Voice input: ${event.error}`);
-    render();
-  };
-  recognition.onend=()=>{
-    window.__voiceListening=false;
-    window.__recognition=null;
-    const text=(finalText||window.__agentDraft||'').trim();
-    render();
-    if(text){
-      window.__voiceInitiated=true;
-      setTimeout(()=>askAi(text,{stayHome:true}),200);
-    }
-  };
-  try{recognition.start();}catch(err){window.__voiceListening=false;toast(err.message);render();}
+  const recognition=new SR(); window.__recognition=recognition; recognition.lang='en-IN'; recognition.interimResults=true; recognition.continuous=false;
+  let finalText=''; window.__voiceListening=true; render();
+  recognition.onresult=(event)=>{let interim=''; for(let i=event.resultIndex;i<event.results.length;i++){const t=event.results[i][0].transcript;if(event.results[i].isFinal)finalText+=t;else interim+=t;} const text=(finalText||interim).trim(); window.__agentDraft=text; const el=document.getElementById(targetId); if(el) el.value=text;};
+  recognition.onerror=(event)=>{window.__voiceListening=false; window.__recognition=null; toast(`Voice input: ${event.error}`); render();};
+  recognition.onend=()=>{window.__voiceListening=false; window.__recognition=null; const text=(finalText||window.__agentDraft||'').trim(); render(); if(text){setTimeout(()=>askAiHome(text,true),180);}};
+  try{recognition.start();}catch(err){window.__voiceListening=false; toast(err.message);render();}
 }
 
-function createSpeech(text, force=false) {
-  if(!('speechSynthesis' in window)) return toast('Text-to-speech is not supported in this browser.');
-  const clean=String(text||'').replace(/\*\*/g,'').replace(/[#*_`]/g,' ').replace(/\s+/g,' ').trim();
-  if(!clean) return;
-  stopCurrentSpeech();
-  const utter=new SpeechSynthesisUtterance(clean);
-  utter.lang='en-IN';
-  utter.rate=0.95;
-  utter.pitch=1;
-  utter.onstart=()=>{window.__speechActive=true;window.__speechPaused=false;if(state.page==='agent')render();};
-  utter.onend=()=>{window.__speechActive=false;window.__speechPaused=false;window.__speechUtterance=null;if(state.page==='agent')render();};
-  utter.onerror=()=>{window.__speechActive=false;window.__speechPaused=false;window.__speechUtterance=null;if(state.page==='agent')render();};
-  window.__speechUtterance=utter;
-  window.speechSynthesis.speak(utter);
+function speakText(text) {
+  if(!('speechSynthesis' in window) || !text) return;
+  window.speechSynthesis.cancel();
+  const clean=String(text).replace(/\*\*/g,'').replace(/[#*_`]/g,' ').replace(/\s+/g,' ').trim();
+  const utter=new SpeechSynthesisUtterance(clean); utter.lang='en-IN'; utter.rate=0.96; utter.pitch=1;
+  utter.onstart=()=>{window.__voiceSpeaking=true;render();};
+  utter.onend=()=>{window.__voiceSpeaking=false;render();};
+  utter.onerror=()=>{window.__voiceSpeaking=false;render();};
+  window.__currentUtterance=utter; window.speechSynthesis.speak(utter);
 }
-
+function stopSpeech(){if('speechSynthesis' in window)window.speechSynthesis.cancel();window.__voiceSpeaking=false;}
+function pauseSpeech(){if(!('speechSynthesis' in window))return;if(window.speechSynthesis.paused){window.speechSynthesis.resume();}else{window.speechSynthesis.pause();}}
 function readAloud() {
-  const text=String(window.__aiAnswer||window.__homeResponse||'');
-  if(!text.trim()) return toast('There is no response to read yet.');
-  createSpeech(text,true);
-}
-
-function speakVoiceResponse(text) {
-  if(!window.__voiceInitiated) return;
-  window.__voiceInitiated=false;
-  createSpeech(text,true);
-}
-
-function pauseResumeSpeech() {
-  if(!('speechSynthesis' in window)||!window.__speechActive) return;
-  if(window.speechSynthesis.paused){window.speechSynthesis.resume();window.__speechPaused=false;}
-  else{window.speechSynthesis.pause();window.__speechPaused=true;}
-  render();
-}
-
-function copyHomeResponse() {
-  const text=String(window.__homeResponse||'').replace(/\*\*/g,'');
-  if(!text) return toast('There is no response to copy.');
-  navigator.clipboard?.writeText(text).then(()=>toast('Response copied')).catch(()=>toast('Unable to copy the response.'));
+  const text=String(window.__aiAnswer||window.__homeAiAnswer||'').trim();
+  if(!text) return toast('There is no response to read yet.');
+  speakText(text);
 }
 
 function render() {
@@ -424,64 +356,55 @@ async function waitForMoveworksResult(startedAt, requestId, timeoutMs=75000) {
   return null;
 }
 
-async function askAi(prompt, options={}) {
+
+async function askAiHome(prompt, autoSpeak=false) {
+  const clean=String(prompt||'').trim(); if(!clean) return toast('Enter or speak a question first.');
+  window.__lastAiQuestion=clean; window.__agentPrompt=clean; window.__agentDraft=clean; window.__homeAiAnswer=''; state.aiBusy=true; state.page='agent'; render();
+  try {
+    const local=localOperationalResult(clean);
+    if(local){window.__agentLocalResult=local;window.__homeAiAnswer=local.answer;window.__aiAnswer=local.answer;}
+    else {
+      const result=await api('/api/ai/query',{method:'POST',body:JSON.stringify({prompt:clean})});
+      if(result.mode==='webhook-trigger'){
+        window.__homeAiAnswer=result.answer||'Moveworks accepted the request. Waiting for the live response…'; render();
+        const callback=await waitForMoveworksResult(result.startedAt,result.requestId);
+        window.__homeAiAnswer=callback?resultSummary(callback,clean):'Moveworks accepted the request, but the workflow is still running.';
+        if(callback) await refreshDashboard(false);
+      } else window.__homeAiAnswer=result.answer||'No AI response was returned.';
+      window.__aiAnswer=window.__homeAiAnswer;
+    }
+  } catch(err){window.__homeAiAnswer=`Unable to contact Moveworks AI: ${err.message}`;window.__aiAnswer=window.__homeAiAnswer;}
+  finally {state.aiBusy=false;state.page='agent';render();if(autoSpeak&&window.__homeAiAnswer)setTimeout(()=>speakText(window.__homeAiAnswer),250);}
+}
+
+async function askAi(prompt) {
   const clean=String(prompt||'').trim(); if(!clean) return toast('Enter a question first.');
-  const stayHome=Boolean(options.stayHome);
-  window.__lastAiQuestion=clean; window.__agentPrompt=clean; window.__agentDraft=clean; window.__agentLocalResult=null;
+  window.__lastAiQuestion=clean; window.__agentPrompt=clean; window.__agentDraft=''; window.__agentLocalResult=null;
 
-  const showHome=(text,busy=false)=>{
-    window.__homeResponse=text;
-    window.__homeBusy=busy;
-    state.page='agent';
-    state.aiBusy=busy;
-    render();
-  };
-
-  // Fast live answers such as counts remain on the home page for voice requests.
+  // Fast local operational answers: counts and list requests should appear immediately.
   const local=localOperationalResult(clean);
-  if(local) {
-    window.__agentLocalResult=local;
-    window.__aiAnswer=local.answer;
-    state.aiBusy=false;
-    if(stayHome) showHome(local.answer,false);
-    else { state.page='results'; render(); }
-    speakVoiceResponse(local.answer);
-    return;
-  }
+  if(local) { window.__agentLocalResult=local; window.__aiAnswer=local.answer; state.page='results'; state.aiBusy=false; render(); return; }
 
-  if(stayHome) showHome(`You asked: “${clean}”`,true);
-  else { state.page='results'; state.aiBusy=true; window.__aiAnswer=''; render(); }
-
-  let finalAnswer='';
+  state.page='results'; state.aiBusy=true; window.__aiAnswer=''; render();
   try {
     const result=await api('/api/ai/query',{method:'POST',body:JSON.stringify({prompt:clean})});
     if(result.mode==='webhook-trigger') {
-      const waiting=result.answer||'Moveworks accepted the request. I am checking the live governance data now.';
-      window.__aiAnswer=waiting;
-      if(stayHome) showHome(waiting,true); else render();
+      window.__aiAnswer=result.answer||'Moveworks accepted the request. Waiting for the live callback…'; render();
       const callback=await waitForMoveworksResult(result.startedAt,result.requestId);
       if(callback) {
-        finalAnswer=resultSummary(callback,clean);
-        window.__aiAnswer=finalAnswer;
+        window.__aiAnswer=resultSummary(callback,clean);
         await refreshDashboard(false);
+        state.page='results';
       } else {
-        finalAnswer='Moveworks accepted the request and the workflow is still running. Please try again shortly.';
-        window.__aiAnswer=finalAnswer;
+        window.__aiAnswer='Moveworks accepted the request and the workflow is still running. The result page will refresh when the callback is received.';
       }
     } else {
-      finalAnswer=result.answer||'No AI response returned.';
-      window.__aiAnswer=finalAnswer;
+      window.__aiAnswer=result.answer||'No AI response returned.';
     }
-  } catch(err) {
-    finalAnswer=`Unable to contact Moveworks AI: ${err.message}`;
-    window.__aiAnswer=finalAnswer;
-  } finally {
-    state.aiBusy=false;
-    if(stayHome) showHome(finalAnswer||window.__aiAnswer,false);
-    else { state.page='results'; render(); }
-    speakVoiceResponse(finalAnswer||window.__aiAnswer);
-  }
+  } catch(err) { window.__aiAnswer=`Unable to contact Moveworks AI: ${err.message}`; }
+  finally { state.aiBusy=false; state.page='results'; render(); }
 }
+
 function openAssign(ticketId) {
   const t=state.tickets.find(x=>x.id===ticketId); if(!t) return; state.selectedTicket=t;
   const overlay=document.createElement('div'); overlay.className='modalback'; overlay.id='assignModal';
@@ -491,19 +414,18 @@ function openAssign(ticketId) {
 
 async function handleAction(action,arg) {
   if(action==='refreshData'){await refreshDashboard(true);return;}
-  if(action==='quickAgent') return askAi(arg,{stayHome:true});
-  if(action==='stopSpeech'){stopCurrentSpeech();render();return;}
-  if(action==='pauseResumeSpeech'){pauseResumeSpeech();return;}
-  if(action==='copyHomeResponse'){copyHomeResponse();return;}
-  if(action==='closeHomeResponse'){stopCurrentSpeech();window.__homeResponse='';window.__homeBusy=false;render();return;}
-  if(action==='openFullAnalysis'){stopCurrentSpeech();state.page='results';window.__aiAnswer=window.__homeResponse||window.__aiAnswer||'';render();return;}
-  if(action==='agentAsk') return askAi(document.getElementById('agentPrompt')?.value||'',{stayHome:false});
-  if(action==='agentPrompt') return askAi(arg);
+  if(action==='agentAsk') return askAiHome(document.getElementById('agentPrompt')?.value||'',false);
+  if(action==='agentPrompt') return askAiHome(arg,false);
   if(action==='startVoice') return startVoice('agentPrompt');
   if(action==='startVoiceResult') return startVoice('resultPrompt');
   if(action==='resultAsk') return askAi(document.getElementById('resultPrompt')?.value||'');
   if(action==='backAgent'){state.page='agent';window.__aiAnswer='';window.__agentLocalResult=null;render();return;}
   if(action==='readAloud') return readAloud();
+  if(action==='stopSpeech'){stopSpeech();render();return;}
+  if(action==='pauseSpeech'){pauseSpeech();return;}
+  if(action==='closeHomeResponse'){stopSpeech();window.__homeAiAnswer='';render();return;}
+  if(action==='copyHomeResponse'){navigator.clipboard?.writeText(window.__homeAiAnswer||'');toast('Response copied');return;}
+  if(action==='viewFullAnalysis'){window.__aiAnswer=window.__homeAiAnswer||window.__aiAnswer||'';state.page='results';render();return;}
   if(action==='nav'){state.page=arg;render();return;} if(action==='assign')return openAssign(arg); if(action==='closeModal'){document.getElementById('assignModal')?.remove();return;}
   if(action==='confirmAssign') { const input=document.getElementById('assigneeSelect'); if(!state.selectedTicket||!input?.value.trim()) return toast('Enter an assignee.'); try { await api(`/api/tickets/${encodeURIComponent(state.selectedTicket.id)}/assign`,{method:'POST',body:JSON.stringify({assignee:input.value.trim()})}); toast(`${state.selectedTicket.id} assignment requested through Moveworks`); document.getElementById('assignModal')?.remove(); await refreshDashboard(); } catch(err){toast(err.message);} return; }
   if(action==='notifyTicket'){try{await api(`/api/tickets/${encodeURIComponent(arg)}/notify`,{method:'POST',body:'{}'});toast(`Moveworks notification triggered for ${arg}`);}catch(err){toast(err.message);}return;}
@@ -517,7 +439,7 @@ async function handleAction(action,arg) {
 
 document.addEventListener('click',e=>{const navEl=e.target.closest('[data-nav]');if(navEl){state.page=navEl.dataset.nav;render();return;}const actionEl=e.target.closest('[data-action]');if(actionEl)handleAction(actionEl.dataset.action,actionEl.dataset.arg||'');});
 document.addEventListener('input',e=>{if(e.target.id==='ticketSearch'){state.search=e.target.value;render();const el=document.getElementById('ticketSearch');if(el){el.focus();el.setSelectionRange(state.search.length,state.search.length);}} if(e.target.id==='agentPrompt') window.__agentDraft=e.target.value;});
-document.addEventListener('keydown',e=>{if((e.target.id==='agentPrompt'||e.target.id==='resultPrompt')&&e.key==='Enter'&&!e.shiftKey){e.preventDefault();askAi(e.target.value,{stayHome:e.target.id==='agentPrompt'});}});
+document.addEventListener('keydown',e=>{if((e.target.id==='agentPrompt'||e.target.id==='resultPrompt')&&e.key==='Enter'&&!e.shiftKey){e.preventDefault();askAi(e.target.value);}});
 
 setInterval(()=>refreshDashboard(false),5*60*1000);
 render(); refreshDashboard(false);
