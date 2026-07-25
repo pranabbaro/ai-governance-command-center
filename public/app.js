@@ -169,7 +169,6 @@ function renderAgent() {
   const answer=window.__homeAiAnswer||'';
   return `<div class="v11-shell">
     <aside class="v11-sidebar">
-      <div class="v11-side-logo">✦</div>
       <nav>
         <button class="active" data-nav="agent"><span>⌂</span><b>Home</b></button>
         <button data-nav="command"><span>◷</span><b>History</b></button>
