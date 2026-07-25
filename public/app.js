@@ -213,12 +213,6 @@ function renderAgent() {
           <small>${window.__voiceListening?'Listening… speak now':'Press 🎙 to speak'}</small>
         </div>
 
-        <div class="v11-actions">
-          <button data-action="agentPrompt" data-arg="How many SLA breaches do we have?"><span class="red">!</span><div><b>SLA</b><small>SLA Breaches</small></div><em>→</em></button>
-          <button data-action="agentPrompt" data-arg="Show me open incidents"><span class="amber">△</span><div><b>Incidents</b><small>Open Incidents</small></div><em>→</em></button>
-          <button data-nav="devops"><span class="purple">∞</span><div><b>DevOps</b><small>Work Items</small></div><em>→</em></button>
-          <button data-action="agentPrompt" data-arg="Find a knowledge base article"><span class="green">▣</span><div><b>Knowledge Base</b><small>Search Articles</small></div><em>→</em></button>
-        </div>
       </section>
     </main>
   </div>`;
