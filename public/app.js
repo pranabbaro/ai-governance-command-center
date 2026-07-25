@@ -165,46 +165,63 @@ function agentVisual() {
 
 function renderAgent() {
   const speechSupported=Boolean(window.SpeechRecognition||window.webkitSpeechRecognition);
-  const panelOpen=true;
   const speaking=Boolean(window.__voiceSpeaking);
   const answer=window.__homeAiAnswer||'';
-  return `<div class="v106-shell">
-    <section class="v106-canvas" aria-label="AI Operations Agent home page">
-      <div class="v106-hotspots" aria-hidden="false">
-        <button class="v106-hotspot hs-home" data-nav="agent" aria-label="Home"></button>
-        <button class="v106-hotspot hs-history" data-nav="command" aria-label="History"></button>
-        <button class="v106-hotspot hs-favorites" data-nav="ai" aria-label="Favorites"></button>
-        <button class="v106-hotspot hs-kb" data-nav="sla" aria-label="Knowledge Base"></button>
-        <button class="v106-hotspot hs-reports" data-nav="command" aria-label="Reports"></button>
-        <button class="v106-hotspot hs-settings" data-nav="devops" aria-label="Settings"></button>
-        <button class="v106-hotspot hs-command" data-nav="command" aria-label="Open Command Center"></button>
+  return `<div class="v11-shell">
+    <aside class="v11-sidebar">
+      <div class="v11-side-logo">✦</div>
+      <nav>
+        <button class="active" data-nav="agent"><span>⌂</span><b>Home</b></button>
+        <button data-nav="command"><span>◷</span><b>History</b></button>
+        <button data-nav="ai"><span>☆</span><b>Favorites</b></button>
+        <button data-action="agentPrompt" data-arg="Find a knowledge base article"><span>▣</span><b>Knowledge<br>Base</b></button>
+        <button data-nav="command"><span>▥</span><b>Reports</b></button>
+      </nav>
+      <div class="v11-side-bottom">
+        <button data-nav="devops"><span>⚙</span><b>Settings</b></button>
+        <div class="v11-user"><div>P</div><strong>Pranab Baro</strong><small>Administrator</small></div>
       </div>
+    </aside>
 
-      <aside class="v106-response-panel ${state.aiBusy?'busy':''}">
-        <div class="v106-response-head"><strong><span class="v106-bot-icon">🤖</span> AI Operations Agent</strong><button data-action="closeHomeResponse" aria-label="Close response">×</button></div>
-        <div class="v106-speaking">🔊 ${state.aiBusy?'Analyzing…':speaking?'Speaking…':answer?'Response ready':'Ready'}</div>
-        <div class="v106-wave ${speaking?'active':''}">${Array.from({length:31},(_,i)=>`<i style="--i:${i}"></i>`).join('')}</div>
-        <div class="v106-response-body">${state.aiBusy?'Working with your live governance data…':answer?formatAiText(answer):'Ask me about SLA records, incidents, DevOps work items, cloud cost, or knowledge articles.'}</div>
-        <div class="v106-response-controls">
-          <button data-action="pauseSpeech">⏸ Pause</button><button data-action="stopSpeech">■ Stop</button><button data-action="copyHomeResponse">▣ Copy</button>
+    <main class="v11-main">
+      <header class="v11-topbar">
+        <div class="v11-brand"><div class="v11-brand-icon">✦</div><div><strong>AI Operations Agent</strong><small>Intelligent operations assistant</small></div></div>
+        <div class="v11-top-actions"><span class="v11-connected">● Systems connected</span><button data-nav="command">Open Command Center ↗</button><button class="v11-bell">♧</button></div>
+      </header>
+
+      <section class="v11-stage">
+        <div class="v11-stars"></div>
+        <div class="v11-greeting"><span>Hello! 👋</span><h1>I’m your<br>AI Operations<br>Agent.</h1><p>How can I assist you today?</p><i></i></div>
+
+        <div class="v11-visual" aria-label="3D AI operations robot">
+          <div class="v11-visual-glow"></div>
+          <img src="/ai-agent-center.png?v=11.0.0" alt="Full-body 3D AI robot standing before a glowing digital globe">
         </div>
-        <button class="v106-full" data-action="viewFullAnalysis">View Full Analysis <span>↗</span></button>
-      </aside>
 
-      <div class="v106-prompt-wrap">
-        <button class="v106-mic ${window.__voiceListening?'listening':''}" data-action="startVoice" ${speechSupported?'':'disabled'} title="${speechSupported?'Speak to the AI agent':'Use Chrome or Edge for voice input'}" aria-label="Start voice question">${window.__voiceListening?'◉':'🎤'}</button>
-        <input id="agentPrompt" value="${escapeHtml(window.__agentDraft||'')}" placeholder="Ask about incidents, SLA, DevOps, cloud cost or anything..." autocomplete="off">
-        <button class="v106-send" data-action="agentAsk" aria-label="Send question">➜</button>
-        <div class="v106-voice-hint">${window.__voiceListening?'Listening… speak now':'Press 🎙 to speak'}</div>
-      </div>
+        <aside class="v11-response ${state.aiBusy?'busy':''}">
+          <div class="v11-response-head"><strong><span>🤖</span> AI Operations Agent</strong><button data-action="closeHomeResponse" aria-label="Close">×</button></div>
+          <div class="v11-status">🔊 ${state.aiBusy?'Analyzing…':speaking?'Speaking…':answer?'Response ready':'Ready'}</div>
+          <div class="v11-wave ${speaking?'active':''}">${Array.from({length:29},(_,i)=>`<i style="--i:${i}"></i>`).join('')}</div>
+          <div class="v11-response-body">${state.aiBusy?'Working with your live governance data…':answer?formatAiText(answer):'Ask me about SLA records, incidents, DevOps work items, cloud cost, or knowledge articles.'}</div>
+          <div class="v11-response-controls"><button data-action="pauseSpeech">⏸ Pause</button><button data-action="stopSpeech">■ Stop</button><button data-action="copyHomeResponse">▣ Copy</button></div>
+          <button class="v11-full" data-action="viewFullAnalysis">View Full Analysis <span>↗</span></button>
+        </aside>
 
-      <div class="v106-quick-grid">
-        <button data-action="agentPrompt" data-arg="How many SLA breaches do we have?"><span class="red">!</span><b>SLA</b><small>SLA Breaches</small><em>→</em></button>
-        <button data-action="agentPrompt" data-arg="Show me open incidents"><span class="amber">△</span><b>Incidents</b><small>Open Incidents</small><em>→</em></button>
-        <button data-nav="devops"><span class="purple">∞</span><b>DevOps</b><small>Work Items</small><em>→</em></button>
-        <button data-action="agentPrompt" data-arg="Find a knowledge base article"><span class="green">▣</span><b>Knowledge Base</b><small>Search Articles</small><em>→</em></button>
-      </div>
-    </section>
+        <div class="v11-prompt">
+          <button class="v11-mic ${window.__voiceListening?'listening':''}" data-action="startVoice" ${speechSupported?'':'disabled'}>${window.__voiceListening?'◉':'🎤'}</button>
+          <input id="agentPrompt" value="${escapeHtml(window.__agentDraft||'')}" placeholder="Ask about incidents, SLA, DevOps, cloud cost or anything..." autocomplete="off">
+          <button class="v11-send" data-action="agentAsk">➜</button>
+          <small>${window.__voiceListening?'Listening… speak now':'Press 🎙 to speak'}</small>
+        </div>
+
+        <div class="v11-actions">
+          <button data-action="agentPrompt" data-arg="How many SLA breaches do we have?"><span class="red">!</span><div><b>SLA</b><small>SLA Breaches</small></div><em>→</em></button>
+          <button data-action="agentPrompt" data-arg="Show me open incidents"><span class="amber">△</span><div><b>Incidents</b><small>Open Incidents</small></div><em>→</em></button>
+          <button data-nav="devops"><span class="purple">∞</span><div><b>DevOps</b><small>Work Items</small></div><em>→</em></button>
+          <button data-action="agentPrompt" data-arg="Find a knowledge base article"><span class="green">▣</span><div><b>Knowledge Base</b><small>Search Articles</small></div><em>→</em></button>
+        </div>
+      </section>
+    </main>
   </div>`;
 }
 
