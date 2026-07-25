@@ -247,3 +247,328 @@
 .v11-wave.active i{
   animation-duration:.95s;
 }
+
+
+/* =========================================================
+   V11.8 MOBILE RESPONSIVE LAYOUT
+   Desktop (min-width: 901px) is intentionally unchanged.
+   ========================================================= */
+@media (max-width: 900px) {
+  html, body {
+    width: 100%;
+    min-width: 0;
+    overflow-x: hidden;
+    background: #020817;
+  }
+
+  body {
+    min-height: 100dvh;
+  }
+
+  .v11-shell {
+    display: block;
+    width: 100%;
+    min-height: 100dvh;
+    overflow-x: hidden;
+  }
+
+  /* Hide the desktop side navigation completely on phones/tablets. */
+  .v11-sidebar {
+    display: none !important;
+  }
+
+  .v11-main {
+    width: 100% !important;
+    min-width: 0;
+    margin: 0 !important;
+    min-height: 100dvh;
+  }
+
+  /* Compact mobile header */
+  .v11-topbar {
+    height: 82px;
+    min-height: 82px;
+    padding: 10px 12px !important;
+    gap: 10px;
+    position: relative;
+    z-index: 40;
+  }
+
+  .v11-brand {
+    gap: 9px;
+    min-width: 0;
+  }
+
+  .v11-brand-icon {
+    width: 42px !important;
+    height: 42px !important;
+    min-width: 42px;
+    border-radius: 12px !important;
+    font-size: 19px !important;
+  }
+
+  .v11-brand strong {
+    font-size: 18px !important;
+    line-height: 1.08;
+    display: block;
+    max-width: 160px;
+  }
+
+  .v11-brand small {
+    display: none !important;
+  }
+
+  .v11-top-actions {
+    margin-left: auto;
+    flex: 0 0 auto;
+  }
+
+  .v11-top-actions .v11-connected,
+  .v11-top-actions .v11-bell {
+    display: none !important;
+  }
+
+  .v11-top-actions button[data-nav="command"] {
+    width: 46px;
+    height: 46px;
+    min-width: 46px;
+    padding: 0 !important;
+    border-radius: 13px;
+    overflow: hidden;
+    font-size: 0 !important;
+    display: grid;
+    place-items: center;
+  }
+
+  .v11-top-actions button[data-nav="command"]::after {
+    content: "↗";
+    font-size: 22px;
+    color: #fff;
+  }
+
+  /* Mobile content becomes a natural vertical layout. */
+  .v11-stage {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    min-height: calc(100dvh - 82px);
+    overflow: visible !important;
+    padding: 0 10px 112px !important;
+    background:
+      radial-gradient(circle at 50% 42%, #073d7d 0%, #03152f 36%, #020817 74%);
+  }
+
+  .v11-stage::before,
+  .v11-stars {
+    position: fixed;
+    pointer-events: none;
+  }
+
+  /* Greeting first, centered and compact. */
+  .v11-greeting {
+    order: 1;
+    position: relative !important;
+    left: auto !important;
+    top: auto !important;
+    width: 100% !important;
+    max-width: 390px;
+    padding: 24px 12px 12px !important;
+    margin: 0 auto;
+    text-align: center;
+    z-index: 8;
+  }
+
+  .v11-greeting > span {
+    font-size: 28px !important;
+  }
+
+  .v11-greeting h1 {
+    margin: 9px 0 7px !important;
+    font-size: clamp(30px, 9.2vw, 38px) !important;
+    line-height: 1.08 !important;
+    letter-spacing: -0.5px;
+  }
+
+  /* Remove forced desktop line breaks so the title wraps naturally. */
+  .v11-greeting h1 br {
+    display: none;
+  }
+
+  .v11-greeting p {
+    margin: 0 !important;
+    font-size: 16px !important;
+    line-height: 1.4;
+  }
+
+  .v11-greeting i {
+    width: 54px !important;
+    margin: 13px auto 0 !important;
+  }
+
+  /* Full robot + complete globe, centered with no cropping. */
+  .v11-visual {
+    order: 2;
+    position: relative !important;
+    left: auto !important;
+    top: auto !important;
+    transform: none !important;
+    width: min(94vw, 590px) !important;
+    height: auto !important;
+    min-height: 0 !important;
+    aspect-ratio: 590 / 700;
+    margin: 0 auto 14px;
+    display: grid;
+    place-items: center;
+    overflow: visible !important;
+    animation: none !important;
+    z-index: 4;
+  }
+
+  .v11-visual img {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: none !important;
+    max-height: none !important;
+    object-fit: contain !important;
+    object-position: center center !important;
+    display: block;
+  }
+
+  .v11-visual-glow {
+    width: 92% !important;
+    height: 92% !important;
+  }
+
+  /* Don't show an empty Ready panel on a phone.
+     It becomes a readable bottom sheet only while working/responding. */
+  .v11-response {
+    display: none !important;
+  }
+
+  .v11-response.has-content {
+    display: flex !important;
+    position: fixed !important;
+    left: 10px !important;
+    right: 10px !important;
+    top: auto !important;
+    bottom: calc(88px + env(safe-area-inset-bottom, 0px)) !important;
+    width: auto !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: 55dvh;
+    margin: 0 !important;
+    padding: 15px 16px !important;
+    border-radius: 18px;
+    z-index: 50;
+    overflow: hidden;
+  }
+
+  .v11-response-body {
+    min-height: 80px;
+    max-height: 27dvh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .v11-response-controls button {
+    min-height: 42px;
+  }
+
+  /* Prompt is always accessible above the iPhone safe area. */
+  .v11-prompt {
+    position: fixed !important;
+    left: 10px !important;
+    right: 10px !important;
+    bottom: calc(12px + env(safe-area-inset-bottom, 0px)) !important;
+    transform: none !important;
+    width: auto !important;
+    height: 64px !important;
+    padding: 6px 7px !important;
+    z-index: 60;
+  }
+
+  .v11-prompt input {
+    min-width: 0;
+    font-size: 16px !important; /* prevents iOS auto-zoom */
+    padding: 0 10px !important;
+  }
+
+  .v11-mic,
+  .v11-send {
+    width: 50px !important;
+    height: 50px !important;
+    min-width: 50px;
+  }
+
+  .v11-prompt small {
+    display: none !important;
+  }
+
+  /* V11.5+ removed these cards; keep them suppressed on mobile too. */
+  .v11-actions {
+    display: none !important;
+  }
+}
+
+/* Narrow phones such as iPhone Mini/SE */
+@media (max-width: 420px) {
+  .v11-topbar {
+    height: 76px;
+    min-height: 76px;
+    padding: 8px 10px !important;
+  }
+
+  .v11-brand-icon {
+    width: 38px !important;
+    height: 38px !important;
+    min-width: 38px;
+  }
+
+  .v11-brand strong {
+    font-size: 16px !important;
+    max-width: 145px;
+  }
+
+  .v11-top-actions button[data-nav="command"] {
+    width: 42px;
+    height: 42px;
+    min-width: 42px;
+  }
+
+  .v11-stage {
+    min-height: calc(100dvh - 76px);
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+  }
+
+  .v11-greeting {
+    padding-top: 18px !important;
+  }
+
+  .v11-greeting > span {
+    font-size: 25px !important;
+  }
+
+  .v11-greeting h1 {
+    font-size: clamp(28px, 8.8vw, 34px) !important;
+  }
+
+  .v11-visual {
+    width: min(96vw, 560px) !important;
+  }
+
+  .v11-prompt {
+    left: 7px !important;
+    right: 7px !important;
+    height: 60px !important;
+  }
+
+  .v11-mic,
+  .v11-send {
+    width: 47px !important;
+    height: 47px !important;
+    min-width: 47px;
+  }
+}

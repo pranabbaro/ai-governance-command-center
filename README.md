@@ -53,3 +53,16 @@ Use Microsoft Edge or Google Chrome and allow microphone access.
 - Quick prompt actions also speak the final answer automatically.
 - Increased the speaking waveform from 29 to 43 animated bars and widened it across the response panel.
 - No robot/globe positioning, prompt positioning, or navigation layout changes.
+
+
+## V11.8 Mobile Responsive
+- Desktop V11.7 layout and behavior are unchanged.
+- Added a dedicated mobile layout at 900px and below.
+- Full robot and full globe are centered and contained without horizontal cropping.
+- Greeting is compact and centered above the robot on mobile.
+- Desktop sidebar is hidden on phones.
+- Open Command Center becomes a compact icon button on mobile.
+- The AI response panel is hidden while idle and becomes a mobile bottom sheet when answering/speaking.
+- Voice/text prompt is fixed above the mobile safe area.
+- 16px prompt input prevents iOS Safari auto-zoom.
+- Existing automatic voice response for typed and spoken prompts is preserved.
