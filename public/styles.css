@@ -227,3 +227,23 @@
     bottom:28px !important;
   }
 }
+
+
+/* === V11.7: interaction-only enhancement ===
+   - Preserve the V11.6.1 homepage layout exactly.
+   - Extend the speaking waveform horizontally for stronger visibility.
+*/
+.v11-wave{
+  width:100%;
+  min-height:58px;
+  gap:2.7px;
+  overflow:hidden;
+}
+.v11-wave i{
+  flex:1 1 auto;
+  min-width:2px;
+  max-width:4px;
+}
+.v11-wave.active i{
+  animation-duration:.95s;
+}

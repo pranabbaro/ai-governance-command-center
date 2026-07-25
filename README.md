@@ -44,3 +44,12 @@ Use Microsoft Edge or Google Chrome and allow microphone access.
 - Fixed integration test version mismatch that caused the GitHub Actions build to fail at /health.
 - Health endpoint, package version, and integration test now all expect 11.6.1.
 - No homepage visual/layout changes from V11.6.
+
+
+## V11.7
+- Preserves the approved V11.6.1 homepage layout.
+- Typed questions on the home prompt now automatically trigger spoken AI responses.
+- Voice questions continue to receive automatic spoken responses.
+- Quick prompt actions also speak the final answer automatically.
+- Increased the speaking waveform from 29 to 43 animated bars and widened it across the response panel.
+- No robot/globe positioning, prompt positioning, or navigation layout changes.

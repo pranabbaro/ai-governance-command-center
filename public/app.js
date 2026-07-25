@@ -194,13 +194,13 @@ function renderAgent() {
 
         <div class="v11-visual" aria-label="3D AI operations robot">
           <div class="v11-visual-glow"></div>
-          <img src="/ai-agent-center.png?v=11.5.0" alt="Full-body 3D AI robot standing before a glowing digital globe">
+          <img src="/ai-agent-center.png?v=11.7.0" alt="Full-body 3D AI robot standing before a glowing digital globe">
         </div>
 
         <aside class="v11-response ${state.aiBusy?'busy':''}">
           <div class="v11-response-head"><strong><span>🤖</span> AI Operations Agent</strong><button data-action="closeHomeResponse" aria-label="Close">×</button></div>
           <div class="v11-status">🔊 ${state.aiBusy?'Analyzing…':speaking?'Speaking…':answer?'Response ready':'Ready'}</div>
-          <div class="v11-wave ${speaking?'active':''}">${Array.from({length:29},(_,i)=>`<i style="--i:${i}"></i>`).join('')}</div>
+          <div class="v11-wave ${speaking?'active':''}">${Array.from({length:43},(_,i)=>`<i style="--i:${i}"></i>`).join('')}</div>
           <div class="v11-response-body">${state.aiBusy?'Working with your live governance data…':answer?formatAiText(answer):'Ask me about SLA records, incidents, DevOps work items, cloud cost, or knowledge articles.'}</div>
           <div class="v11-response-controls"><button data-action="pauseSpeech">⏸ Pause</button><button data-action="stopSpeech">■ Stop</button><button data-action="copyHomeResponse">▣ Copy</button></div>
           <button class="v11-full" data-action="viewFullAnalysis">View Full Analysis <span>↗</span></button>
@@ -362,7 +362,7 @@ async function waitForMoveworksResult(startedAt, requestId, timeoutMs=75000) {
 }
 
 
-async function askAiHome(prompt, autoSpeak=false) {
+async function askAiHome(prompt, autoSpeak=true) {
   const clean=String(prompt||'').trim(); if(!clean) return toast('Enter or speak a question first.');
   window.__lastAiQuestion=clean; window.__agentPrompt=clean; window.__agentDraft=clean; window.__homeAiAnswer=''; state.aiBusy=true; state.page='agent'; render();
   try {
@@ -419,8 +419,8 @@ function openAssign(ticketId) {
 
 async function handleAction(action,arg) {
   if(action==='refreshData'){await refreshDashboard(true);return;}
-  if(action==='agentAsk') return askAiHome(document.getElementById('agentPrompt')?.value||'',false);
-  if(action==='agentPrompt') return askAiHome(arg,false);
+  if(action==='agentAsk') return askAiHome(document.getElementById('agentPrompt')?.value||'',true);
+  if(action==='agentPrompt') return askAiHome(arg,true);
   if(action==='startVoice') return startVoice('agentPrompt');
   if(action==='startVoiceResult') return startVoice('resultPrompt');
   if(action==='resultAsk') return askAi(document.getElementById('resultPrompt')?.value||'');
