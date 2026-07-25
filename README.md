@@ -38,3 +38,9 @@ Use Microsoft Edge or Google Chrome and allow microphone access.
 - Preserves V11.3 robot/globe position, size and scaling.
 - Keeps V11.5 bottom cards removed.
 - Moves only the desktop voice/text prompt down to 28px from the bottom so the robot legs and feet remain unobstructed.
+
+
+## V11.6.1 deployment fix
+- Fixed integration test version mismatch that caused the GitHub Actions build to fail at /health.
+- Health endpoint, package version, and integration test now all expect 11.6.1.
+- No homepage visual/layout changes from V11.6.
