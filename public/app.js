@@ -194,7 +194,7 @@ function renderAgent() {
 
         <div class="v11-visual" aria-label="3D AI operations robot">
           <div class="v11-visual-glow"></div>
-          <img src="/ai-agent-center.png?v=11.0.0" alt="Full-body 3D AI robot standing before a glowing digital globe">
+          <img src="/ai-agent-center.png?v=11.5.0" alt="Full-body 3D AI robot standing before a glowing digital globe">
         </div>
 
         <aside class="v11-response ${state.aiBusy?'busy':''}">
