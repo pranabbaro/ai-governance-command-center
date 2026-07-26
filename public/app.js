@@ -5,6 +5,7 @@ const state = {
   lastRefresh: new Date(), morning: 0, updated: 0, closed: 0, pending: 0,
   ageingTotal: 0, incidentCount: 0, ritmCount: 0, taskCount: 0,
   slaAtRisk: 0, slaCritical: 0, slaBreached: 0, slaTotalAttention: 0, slaCompliance: null,
+  slaIncidentCount: 0, slaIncidentNumbers: [],
   devopsHygiene: 0, devopsNonCompliant: 0, devopsLargestGap: '',
   tickets: [], slaBreaches: [], devopsItems: [], trend: [], aiBriefing: null
 };
@@ -73,11 +74,17 @@ function ticketTable(rows) {
 function renderCommand() {
   const highest=[...state.tickets].sort((a,b)=>(b.risk||0)-(a.risk||0)).slice(0,3);
   const trend = state.trend.length ? state.trend.map((x,i)=>`<span>${['Mon','Tue','Wed','Thu','Fri'][i]||`W${i+1}`} ${x}%</span>`).join('') : '<span>No trend snapshot yet</span>';
-  return layout(`<section class="metrics four">
+  const breachedIncidentPreview = state.slaIncidentNumbers.slice(0,12);
+  return layout(`<section class="metrics five">
     ${metric('Ageing Tickets',state.ageingTotal,'>15 days and stale >5 days','orange')}
     ${metric('SLA Breaches',state.slaBreached,'Live breached SLA records','red')}
+    ${metric('Breached Incidents',state.slaIncidentCount,'Unique incident numbers in breached SLA list','orange')}
     ${metric('DevOps Hygiene',state.devopsHygiene?state.devopsHygiene+'%':'—',state.devopsHygiene?'Live governance score':'DevOps endpoint not yet connected','purple')}
     ${metric('Action Rate',actionRate()+'%',state.morning?`${state.updated+state.closed} of ${state.morning} actioned today`:'Awaiting morning/EOD snapshot','green')}
+  </section>
+  <section class="card"><div class="cardhead"><div><h2>Breached Incident Numbers</h2><p>${state.slaIncidentCount} unique incident${state.slaIncidentCount===1?'':'s'} currently represented in the live breached SLA records.</p></div>${button('View SLA Intelligence','nav','sla')}</div>
+    <div class="incident-number-list">${breachedIncidentPreview.length?breachedIncidentPreview.map(n=>`<button class="incident-pill" data-action="aiPrompt" data-arg="Give me RCA for ${escapeHtml(n)}">${escapeHtml(n)}</button>`).join(''):'<span class="muted">No incident numbers have been returned yet.</span>'}</div>
+    ${state.slaIncidentNumbers.length>12?`<div class="muted incident-more">+${state.slaIncidentNumbers.length-12} more incident numbers available in SLA Intelligence</div>`:''}
   </section>
   <section class="twocol"><div class="card"><div class="cardhead"><div><h2>Today's Governance Effectiveness</h2><p>Morning ageing backlog versus end-of-day outcome</p></div>${badge(actionRate()+'% Actioned','success')}</div>
     <div class="effect"><div><span>Morning</span><strong>${state.morning}</strong></div><div><span>Updated</span><strong>${state.updated}</strong></div><div><span>Closed</span><strong>${state.closed}</strong></div><div><span>Pending</span><strong>${state.pending}</strong></div></div>
@@ -816,6 +823,7 @@ async function refreshDashboard(showToast=false) {
     const data=await api('/api/dashboard');
     state.triggerOnly=data.mode==='trigger-only'; state.statusMessage=data.message||''; state.live=!state.triggerOnly; state.ageingTotal=data.ageing?.total||0; state.incidentCount=data.ageing?.incidentCount||0; state.ritmCount=data.ageing?.ritmCount||0; state.taskCount=data.ageing?.taskCount||0;
     state.slaAtRisk=data.sla?.atRisk||0; state.slaCritical=data.sla?.critical||0; state.slaBreached=data.sla?.breached||0; state.slaTotalAttention=data.sla?.totalAttention ?? (state.slaAtRisk+state.slaBreached); state.slaCompliance=data.sla?.compliance??null;
+    state.slaIncidentCount=data.sla?.incidentCount ?? 0; state.slaIncidentNumbers=Array.isArray(data.sla?.incidentNumbers)?data.sla.incidentNumbers:[];
     state.morning=data.daily?.morning||0; state.updated=data.daily?.updated||0; state.closed=data.daily?.closed||0; state.pending=data.daily?.pending||0;
     state.tickets=Array.isArray(data.tickets)?data.tickets:[]; state.slaBreaches=Array.isArray(data.slaBreaches)?data.slaBreaches:[];
     state.devopsHygiene=data.devops?.hygiene||0; state.devopsNonCompliant=data.devops?.nonCompliant||0; state.devopsLargestGap=data.devops?.largestGap||''; state.devopsItems=Array.isArray(data.devops?.items)?data.devops.items:[];
@@ -850,10 +858,11 @@ function liveKpiAnswer(prompt, source=state) {
 
   // Treat "breached incidents" as an SLA-count question when the dashboard context is SLA governance.
   if((mentionsSla || mentionsIncident) && mentionsBreach) {
-    const incidentNote=mentionsIncident
-      ? ' This value is the count of breached SLA records. The current feed does not yet de-duplicate them into unique incident IDs.'
-      : '';
-    return `**${breached} breached SLA records** are currently reported in the latest live ServiceNow governance data.${incidentNote}`;
+    if (mentionsIncident && (source.sla?.incidentCount !== undefined || state.slaIncidentCount)) {
+      const incidentCount=Number(source.sla?.incidentCount ?? state.slaIncidentCount ?? 0);
+      return `**${breached} breached SLA records** are currently reported, representing **${incidentCount} unique incident numbers** in the latest live ServiceNow governance data.`;
+    }
+    return `**${breached} breached SLA records** are currently reported in the latest live ServiceNow governance data.`;
   }
   if(mentionsSla && /\bcritical\b/.test(q)) return `**${critical} critical SLA records** are currently reported in the latest live ServiceNow governance data.`;
   if(mentionsSla && /\b(at risk|risk)\b/.test(q)) return `**${atRisk} SLA records are at risk** in the latest live ServiceNow governance data.`;
@@ -877,11 +886,14 @@ function resultSummary(result, prompt='') {
   return parts.length?`Live Moveworks governance result received.\n\n${parts.join('\n')}`:'Live Moveworks governance result received and the dashboard has been refreshed.';
 }
 
-async function waitForMoveworksResult(startedAt, requestId, timeoutMs=75000) {
+async function waitForMoveworksResult(startedAt, requestId, incidentNumber='', timeoutMs=120000) {
   const started=Date.now();
   while(Date.now()-started<timeoutMs) {
     await new Promise(resolve=>setTimeout(resolve,2000));
-    const qs=new URLSearchParams(); if(startedAt) qs.set('since',startedAt); if(requestId) qs.set('request_id',requestId);
+    const qs=new URLSearchParams();
+    if(startedAt) qs.set('since',startedAt);
+    if(requestId) qs.set('request_id',requestId);
+    if(incidentNumber) qs.set('incident_number',incidentNumber);
     const status=await api(`/api/moveworks/result?${qs.toString()}`);
     if(status.status==='ready'&&status.result) return status.result;
   }
@@ -917,7 +929,8 @@ async function askAiHome(prompt, autoSpeak=true) {
       const result=await api('/api/ai/query',{method:'POST',body:JSON.stringify({prompt:clean})});
       if(result.mode==='webhook-trigger'){
         window.__homeAiAnswer=result.answer||'Moveworks accepted the request. Waiting for the live response…'; render();
-        const callback=await waitForMoveworksResult(result.startedAt,result.requestId);
+        const incidentMatch=clean.match(/\bINC\d+\b/i);
+        const callback=await waitForMoveworksResult(result.startedAt,result.requestId,incidentMatch?incidentMatch[0].toUpperCase():'');
         window.__homeAiAnswer=callback?resultSummary(callback,clean):'Moveworks accepted the request, but the workflow is still running.';
         if(callback) await refreshDashboard(false);
       } else window.__homeAiAnswer=result.answer||'No AI response was returned.';

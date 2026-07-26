@@ -218,6 +218,8 @@ function normalizeDashboardPayload(payload) {
   const devops = unwrap(p.devops || p.devops_result || {});
   const ticketsRaw = p.tickets || ageing.tickets || p.ageing_tickets || [];
   const slaBreachesRaw = p.slaBreaches || p.sla_breaches || p.breached_incidents || sla.breaches || sla.breached_incidents || [];
+  const normalizedSlaBreaches = Array.isArray(slaBreachesRaw) ? slaBreachesRaw.map(normalizeSlaBreach) : [];
+  const breachedIncidentNumbers = [...new Set(normalizedSlaBreaches.map(x => x.number || x.id).filter(Boolean))];
   const devopsItemsRaw = p.devopsItems || p.devops_items || devops.items || [];
 
   const incidentCount = num(ageing.incident_count ?? ageing.incidents ?? p.incident_count);
@@ -233,7 +235,15 @@ function normalizeDashboardPayload(payload) {
     mode: p.mode || 'live',
     generatedAt: p.generatedAt || p.generated_at || p.receivedAt || p.received_at || new Date().toISOString(),
     ageing: { incidentCount, ritmCount, taskCount, total: ageingTotal },
-    sla: { atRisk: slaAtRisk, critical: slaCritical, breached: slaBreached, totalAttention: num(sla.total_sla_attention ?? sla.totalAttention ?? p.total_sla_attention, slaAtRisk + slaBreached), compliance: p.sla_compliance ?? sla.compliance ?? null },
+    sla: {
+      atRisk: slaAtRisk,
+      critical: slaCritical,
+      breached: slaBreached,
+      totalAttention: num(sla.total_sla_attention ?? sla.totalAttention ?? p.total_sla_attention, slaAtRisk + slaBreached),
+      compliance: p.sla_compliance ?? sla.compliance ?? null,
+      incidentCount: num(sla.incident_count ?? sla.incidentCount ?? p.sla_incident_count, breachedIncidentNumbers.length),
+      incidentNumbers: Array.isArray(sla.incident_numbers) ? sla.incident_numbers : (Array.isArray(sla.incidentNumbers) ? sla.incidentNumbers : breachedIncidentNumbers)
+    },
     daily: {
       morning: num(daily.morning ?? daily.morning_count, ageingTotal),
       updated: num(daily.updated ?? daily.updated_count),
@@ -243,7 +253,7 @@ function normalizeDashboardPayload(payload) {
       backlogReduction: daily.backlogReduction ?? daily.backlog_reduction ?? null
     },
     tickets: Array.isArray(ticketsRaw) ? ticketsRaw.map(normalizeTicket) : [],
-    slaBreaches: Array.isArray(slaBreachesRaw) ? slaBreachesRaw.map(normalizeSlaBreach) : [],
+    slaBreaches: normalizedSlaBreaches,
     devops: {
       hygiene: num(devops.hygiene ?? devops.overall_hygiene ?? p.devops_hygiene),
       nonCompliant: num(devops.non_compliant ?? devops.nonCompliant),
@@ -384,9 +394,40 @@ const server = http.createServer(async (req, res) => {
       const receivedAt = new Date().toISOString();
       const normalizedInput = normalizeCallbackPayload({ ...body, receivedAt });
       const dashboard = normalizeDashboardPayload(normalizedInput);
-      const stored = {
+      const isIncidentRca = Boolean(
+        (body.incident_number || body.incidentNumber) &&
+        (body.ai_analysis || body.analysis || body.generated_output) &&
+        body.breached_count === undefined &&
+        !Array.isArray(body.breached_incidents)
+      );
+
+      // RCA callbacks are intentionally merged with the last governance snapshot so
+      // a single incident analysis never wipes the dashboard counts / incident list.
+      const previous = latestMoveworksResult && typeof latestMoveworksResult === 'object' ? latestMoveworksResult : {};
+      const rcaIncidentNumber = body.incident_number || body.incidentNumber || null;
+      const rcaAnalysis = body.ai_analysis || body.analysis || body.generated_output || null;
+      const stored = isIncidentRca ? {
+        ...previous,
+        aiBriefing: rcaAnalysis,
+        ai_analysis: rcaAnalysis,
+        incident_number: rcaIncidentNumber,
+        lastRca: {
+          incident_number: rcaIncidentNumber,
+          ai_analysis: rcaAnalysis,
+          receivedAt
+        },
+        callbackType: 'incident_rca',
+        source: 'moveworks-callback',
+        mode: 'live-callback',
+        generatedAt: receivedAt,
+        // Do not inherit an older request id; RCA callback currently does not carry it.
+        request_id: body.request_id || body.requestId || null,
+        prompt: body.prompt || null,
+        receivedAt
+      } : {
         ...normalizedInput,
         ...dashboard,
+        lastRca: previous.lastRca || null,
         request_id: body.request_id || body.requestId || null,
         prompt: body.prompt || null,
         receivedAt
@@ -404,6 +445,20 @@ const server = http.createServer(async (req, res) => {
         if (Number.isFinite(sinceTime) && (!Number.isFinite(resultTime) || resultTime <= sinceTime)) {
           return sendJson(res, 200, { status: 'waiting', message: 'Waiting for a newer Moveworks governance result' });
         }
+      }
+      const incidentNumber = url.searchParams.get('incident_number');
+      if (incidentNumber) {
+        const lastRca = latestMoveworksResult.lastRca || {};
+        const rcaNumber = String(lastRca.incident_number || latestMoveworksResult.incident_number || '').toUpperCase();
+        if (rcaNumber !== String(incidentNumber).toUpperCase()) {
+          return sendJson(res, 200, { status: 'waiting', message: 'Waiting for RCA for the requested incident' });
+        }
+        const rcaTime = Date.parse(lastRca.receivedAt || latestMoveworksResult.receivedAt || 0);
+        const sinceTime = Date.parse(since || 0);
+        if (since && Number.isFinite(sinceTime) && (!Number.isFinite(rcaTime) || rcaTime <= sinceTime)) {
+          return sendJson(res, 200, { status: 'waiting', message: 'Waiting for a newer RCA result' });
+        }
+        return sendJson(res, 200, { status: 'ready', result: latestMoveworksResult });
       }
       const requestId = url.searchParams.get('request_id');
       if (requestId && latestMoveworksResult.request_id && latestMoveworksResult.request_id !== requestId) {
