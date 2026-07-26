@@ -192,12 +192,10 @@ function renderAgent() {
         <div class="v11-stars"></div>
         <div class="v11-greeting"><span>Hello! 👋</span><h1>I’m your<br>AI Operations<br>Agent.</h1><p>How can I assist you today?</p><i></i></div>
 
-        <div class="v11-visual ${speaking?'v13-speaking':''}" aria-label="3D AI operations robot">
+        <div class="v11-visual ${speaking?'v1301-speaking':''}" aria-label="3D AI operations robot">
           <div class="v11-visual-glow"></div>
-          <div class="v13-robot-avatar">
-            <img src="/ai-agent-center.png?v=13.0.0" alt="Full-body 3D AI robot standing before a glowing digital globe">
-            <span class="v13-mouth" aria-hidden="true"></span>
-          </div>
+          <img src="/ai-agent-center.png?v=12.2.0" alt="Full-body 3D AI robot standing before a glowing digital globe">
+          <span class="v1301-mouth" aria-hidden="true"></span>
         </div>
 
         <aside class="v11-response ${state.aiBusy?'busy':''} ${(answer||state.aiBusy||speaking)?'has-content':''}">
@@ -523,7 +521,7 @@ function renderPresentation() {
 
     ${!deck?`
       <main class="v12-upload-view">
-        <div class="v12-upload-robot"><img src="/ai-agent-center.png?v=13.0.0" alt="AI Operations Agent"></div>
+        <div class="v12-upload-robot"><img src="/ai-agent-center.png?v=12.2.0" alt="AI Operations Agent"></div>
         <section class="v12-upload-card">
           <span class="eyebrow">AI PRESENTER</span>
           <h1>Let your AI Operations Agent present any PowerPoint.</h1>
@@ -539,7 +537,7 @@ function renderPresentation() {
         </section>
 
         <aside class="v12-presenter-panel">
-          <div class="v12-presenter-robot ${window.__voiceSpeaking?'v13-speaking':''}"><div class="v13-robot-avatar"><img src="/ai-agent-center.png?v=13.0.0" alt="AI presenter"><span class="v13-mouth" aria-hidden="true"></span></div></div>
+          <div class="v12-presenter-robot"><img src="/ai-agent-center.png?v=12.2.0" alt="AI presenter"></div>
           <div class="v12-presenter-status">
             <strong>🤖 AI Operations Agent</strong>
             <span>${ps.active?(ps.paused?'Paused':'Presenting…'):'Ready to present'}</span>
