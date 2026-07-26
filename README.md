@@ -1,3 +1,17 @@
+# v12.7.0 — DevOps Mock MVP + Reassignment
+
+Adds a realistic mock Azure DevOps hierarchy for demo use when no live DevOps items are returned:
+- Epics, Features, User Stories, Tasks
+- Compliance score and missing-field governance
+- Type/compliance/search filters
+- Mock owner reassignment
+- Local robot answers for DevOps hygiene and non-compliant items
+
+Mock reassignment updates the browser state for the demo only. It does not write to Azure DevOps.
+A production implementation should use the Azure DevOps Work Item REST API through the governed backend.
+
+---
+
 # v12.6.0 — SLA Filters + Reassignment
 
 SLA Intelligence now supports:

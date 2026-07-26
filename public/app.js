@@ -6,14 +6,54 @@ const state = {
   ageingTotal: 0, incidentCount: 0, ritmCount: 0, taskCount: 0,
   slaAtRisk: 0, slaCritical: 0, slaBreached: 0, slaTotalAttention: 0, slaCompliance: null,
   slaStatusFilter: 'all', slaGroupFilter: 'all', slaSearch: '',
-  devopsHygiene: 0, devopsNonCompliant: 0, devopsLargestGap: '',
-  tickets: [], slaBreaches: [], slaIncidentCount: 0, devopsItems: [], trend: [], aiBriefing: null
+  devopsHygiene: 0, devopsNonCompliant: 0, devopsLargestGap: '', devopsTypeFilter:'all', devopsComplianceFilter:'all', devopsSearch:'',
+  tickets: [], slaBreaches: [], slaIncidentCount: 0, devopsItems: [], devopsMockMode:false, trend: [], aiBriefing: null
 };
 
 const nav = [
   ['agent','AI Operations Agent','✦'], ['command','Command Center','⌂'], ['ageing','Ageing Tickets','◷'], ['sla','SLA Intelligence','✓'],
   ['devops','DevOps Governance','▣'], ['ai','Ask Governance AI','◈'], ['presentation','Presentation Mode','▶']
 ];
+
+
+function buildMockDevopsItems() {
+  return [
+    {id:'EPIC-1001',type:'Epic',title:'Employee Service Portal Modernization',owner:'Aarav Mehta',sprint:'FY27-Q1',tags:['EmployeePortal','MVP'],score:100,missing:[],parent:'',status:'Active'},
+    {id:'FEAT-1101',type:'Feature',title:'Manager Approval Workflow',owner:'Priya Sharma',sprint:'Sprint 18',tags:['Approval','MVP'],score:80,missing:['Target Date'],parent:'EPIC-1001',status:'Active'},
+    {id:'US-1201',type:'User Story',title:'Allow managers to approve employee requests',owner:'Neha Rao',sprint:'Sprint 18',tags:['Approval','Frontend'],score:65,missing:['Acceptance Criteria'],parent:'FEAT-1101',status:'Active'},
+    {id:'TASK-1301',type:'Task',title:'Design approval screen',owner:'Rohit Kumar',sprint:'',tags:['UX'],score:70,missing:['Sprint'],parent:'US-1201',status:'New'},
+    {id:'TASK-1302',type:'Task',title:'Develop approval API',owner:'Arjun Singh',sprint:'Sprint 18',tags:[],score:75,missing:['Tags'],parent:'US-1201',status:'In Progress'},
+    {id:'TASK-1303',type:'Task',title:'Unit testing for approval workflow',owner:'Meera Iyer',sprint:'Sprint 18',tags:['Testing'],score:100,missing:[],parent:'US-1201',status:'Active'},
+    {id:'FEAT-1102',type:'Feature',title:'Employee Request Tracking',owner:'Kabir Verma',sprint:'Sprint 19',tags:['Tracking'],score:100,missing:[],parent:'EPIC-1001',status:'Active'},
+    {id:'US-1202',type:'User Story',title:'Allow employees to track request status',owner:'Ananya Das',sprint:'Sprint 19',tags:['Tracking'],score:85,missing:['Acceptance Criteria'],parent:'FEAT-1102',status:'Active'},
+    {id:'TASK-1304',type:'Task',title:'Build request status page',owner:'Vikram Nair',sprint:'Sprint 19',tags:['Frontend'],score:100,missing:[],parent:'US-1202',status:'New'},
+    {id:'TASK-1305',type:'Task',title:'Integrate request tracking API',owner:'Sana Khan',sprint:'Sprint 19',tags:['API'],score:100,missing:[],parent:'US-1202',status:'New'},
+    {id:'EPIC-1002',type:'Epic',title:'Cloud Self-Service Platform',owner:'',sprint:'FY27-Q1',tags:['Cloud','SelfService'],score:75,missing:['Business Owner'],parent:'',status:'Active'},
+    {id:'FEAT-2101',type:'Feature',title:'Azure VM Provisioning',owner:'Dev Patel',sprint:'Sprint 20',tags:['Azure','VM'],score:100,missing:[],parent:'EPIC-1002',status:'Active'},
+    {id:'US-2201',type:'User Story',title:'Request Azure VM from self-service portal',owner:'Ishita Sen',sprint:'Sprint 20',tags:['Azure','VM'],score:70,missing:['Description'],parent:'FEAT-2101',status:'Active'},
+    {id:'TASK-2301',type:'Task',title:'Create Terraform VM module',owner:'Aditya Joshi',sprint:'Sprint 20',tags:['Terraform'],score:100,missing:[],parent:'US-2201',status:'In Progress'},
+    {id:'TASK-2302',type:'Task',title:'Configure VM approval workflow',owner:'',sprint:'Sprint 20',tags:['Approval'],score:70,missing:['Assignee'],parent:'US-2201',status:'New'},
+    {id:'FEAT-2102',type:'Feature',title:'Azure Storage Provisioning',owner:'Nisha Gupta',sprint:'Sprint 20',tags:['Azure','Storage'],score:100,missing:[],parent:'EPIC-1002',status:'Active'},
+    {id:'US-2202',type:'User Story',title:'Request Storage Account from portal',owner:'Karan Malhotra',sprint:'Sprint 20',tags:['Azure','Storage'],score:100,missing:[],parent:'FEAT-2102',status:'Active'},
+    {id:'TASK-2303',type:'Task',title:'Create storage deployment template',owner:'Pooja Menon',sprint:'Sprint 20',tags:['Bicep'],score:100,missing:[],parent:'US-2202',status:'New'}
+  ];
+}
+
+function devopsMetrics(items=[]) {
+  const count=items.length||1;
+  const hygiene=Math.round(items.reduce((sum,x)=>sum+(Number(x.score)||0),0)/count);
+  const nonCompliant=items.filter(x=>(x.missing||[]).length).length;
+  const gaps={};
+  items.forEach(x=>(x.missing||[]).forEach(g=>gaps[g]=(gaps[g]||0)+1));
+  const largestGap=Object.entries(gaps).sort((a,b)=>b[1]-a[1])[0]?.[0]||'None';
+  return {hygiene,nonCompliant,largestGap};
+}
+
+function devopsTypeCounts(items=[]) {
+  const counts={Epic:0,Feature:0,'User Story':0,Task:0};
+  items.forEach(x=>{if(Object.prototype.hasOwnProperty.call(counts,x.type)) counts[x.type]++;});
+  return counts;
+}
 
 const app = document.getElementById('app');
 const escapeHtml = (s='') => String(s).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
@@ -207,8 +247,41 @@ function renderSla() {
 }
 
 function renderDevops() {
-  const rows=state.devopsItems.length?`<div class="tablewrap"><table><thead><tr><th>Work Item</th><th>Type</th><th>Owner</th><th>Missing</th><th>Score</th><th>Action</th></tr></thead><tbody>${state.devopsItems.map(x=>`<tr><td><strong>${escapeHtml(x.id||x.number)}</strong><div class="muted">${escapeHtml(x.title||'')}</div></td><td>${escapeHtml(x.type||'')}</td><td>${escapeHtml(x.owner||'')}</td><td>${(x.missing||[]).map(m=>badge(m,'danger')).join(' ')}</td><td><strong>${Number(x.score)||0}%</strong>${progress(x.score)}</td><td>${button('Ask AI','aiPrompt',`Analyze DevOps work item ${x.id||x.number}`,true)}</td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">Connect MOVEWORKS_DEVOPS_URL to replace this with real Azure DevOps governance data.</div>';
-  return layout(`<section class="metrics three">${metric('Overall Hygiene',state.devopsHygiene?state.devopsHygiene+'%':'—','Live DevOps governance','green')}${metric('Non-Compliant',state.devopsNonCompliant,'Open work items','orange')}${metric('Largest Gap',state.devopsLargestGap||'—','Metadata hygiene','purple')}</section><section class="card"><h2>Azure DevOps Governance</h2>${rows}</section>`);
+  const all=state.devopsItems||[];
+  const q=String(state.devopsSearch||'').trim().toLowerCase();
+  const filtered=all.filter(x=>{
+    const typeOk=state.devopsTypeFilter==='all'||x.type===state.devopsTypeFilter;
+    const complianceOk=state.devopsComplianceFilter==='all'||(state.devopsComplianceFilter==='compliant'?(x.missing||[]).length===0:(x.missing||[]).length>0);
+    const hay=[x.id,x.number,x.type,x.title,x.owner,x.sprint,(x.tags||[]).join(' '),x.parent].join(' ').toLowerCase();
+    return typeOk&&complianceOk&&(!q||hay.includes(q));
+  });
+  const counts=devopsTypeCounts(all);
+  const rows=filtered.length?`<div class="tablewrap"><table><thead><tr><th>Work Item</th><th>Type</th><th>Owner</th><th>Sprint</th><th>Missing</th><th>Score</th><th>Action</th></tr></thead><tbody>${filtered.map(x=>`<tr>
+    <td><strong>${escapeHtml(x.id||x.number)}</strong><div class="muted">${escapeHtml(x.title||'')}</div><div class="muted">Parent: ${escapeHtml(x.parent||'—')}</div></td>
+    <td>${escapeHtml(x.type||'')}</td>
+    <td>${escapeHtml(x.owner||'Unassigned')}</td>
+    <td>${escapeHtml(x.sprint||'Not set')}</td>
+    <td>${(x.missing||[]).length?(x.missing||[]).map(m=>badge(m,'danger')).join(' '):badge('Compliant','success')}</td>
+    <td><strong>${Number(x.score)||0}%</strong>${progress(x.score)}</td>
+    <td><div class="actions">${button('Reassign','reassignDevops',x.id||x.number)}${button('Ask AI','aiPrompt',`Analyze DevOps work item ${x.id||x.number}`,true)}</div></td>
+  </tr>`).join('')}</tbody></table></div>`:'<div class="empty">No DevOps work items match the selected filters.</div>';
+  const sourceNote=state.devopsMockMode?'<span class="demo-pill">MVP MOCK DATA</span>':'<span class="live-pill">LIVE DATA</span>';
+  return layout(`<section class="metrics four">
+    ${metric('Overall Hygiene',state.devopsHygiene+'%','DevOps metadata quality','green')}
+    ${metric('Epics',counts.Epic,'Portfolio initiatives','purple')}
+    ${metric('User Stories',counts['User Story'],'Delivery requirements','orange')}
+    ${metric('Tasks',counts.Task,'Execution items','red')}
+  </section>
+  <section class="card">
+    <div class="cardhead"><div><h2>Azure DevOps Governance ${sourceNote}</h2><p>${state.devopsNonCompliant} non-compliant work items · Largest gap: ${escapeHtml(state.devopsLargestGap||'—')}</p></div></div>
+    <div class="devops-filterbar">
+      <label><span>Work item type</span><select id="devopsTypeFilter" class="search"><option value="all">All types</option>${['Epic','Feature','User Story','Task'].map(v=>`<option value="${v}" ${state.devopsTypeFilter===v?'selected':''}>${v}</option>`).join('')}</select></label>
+      <label><span>Compliance</span><select id="devopsComplianceFilter" class="search"><option value="all">All</option><option value="compliant" ${state.devopsComplianceFilter==='compliant'?'selected':''}>Compliant</option><option value="noncompliant" ${state.devopsComplianceFilter==='noncompliant'?'selected':''}>Non-compliant</option></select></label>
+      <label><span>Search</span><input id="devopsSearch" class="search" placeholder="EPIC, story, owner, sprint..." value="${escapeHtml(state.devopsSearch)}"></label>
+      <button class="btn" data-action="clearDevopsFilters">Clear filters</button>
+    </div>
+    ${rows}
+  </section>`);
 }
 
 function renderAi(answer='') {
@@ -282,6 +355,14 @@ function localOperationalResult(prompt) {
   }
   if(wantsShow && /\b(ageing|aging)\b/.test(q)) {
     return {kind:'ageing-list', rows:state.tickets||[], answer:`Found **${state.ageingTotal} ageing tickets** in the latest live governance result.${state.tickets.length?' Ticket details are shown below.':' The current callback contains the count, but not individual ticket records yet.'}`};
+  }
+  if(/\b(devops|epic|feature|user story|task)\b/.test(q)) {
+    const items=state.devopsItems||[];
+    if(/\b(non compliant|noncompliant|missing|gap|gaps)\b/.test(q)){
+      const bad=items.filter(x=>(x.missing||[]).length);
+      return {kind:'devops-list',rows:bad,answer:`The DevOps MVP has **${bad.length} non-compliant work items**. The largest current metadata gap is **${state.devopsLargestGap||'—'}**.`};
+    }
+    if(/\b(hygiene|score)\b/.test(q)) return {kind:'kpi',answer:`The current DevOps hygiene score is **${state.devopsHygiene}%** across ${items.length} work items.`};
   }
   return null;
 }
@@ -948,7 +1029,16 @@ async function refreshDashboard(showToast=false) {
     state.slaAtRisk=data.sla?.atRisk||0; state.slaCritical=data.sla?.critical||0; state.slaBreached=data.sla?.breached||0; state.slaTotalAttention=data.sla?.totalAttention ?? (state.slaAtRisk+state.slaBreached); state.slaCompliance=data.sla?.compliance??null;
     state.morning=data.daily?.morning||0; state.updated=data.daily?.updated||0; state.closed=data.daily?.closed||0; state.pending=data.daily?.pending||0;
     state.tickets=Array.isArray(data.tickets)?data.tickets:[]; state.slaBreaches=Array.isArray(data.slaBreaches)?data.slaBreaches:[]; state.slaIncidentCount=[...new Set(state.slaBreaches.map(x=>String(x.incident_number||x.id||x.number||'').trim()).filter(Boolean))].length;
-    state.devopsHygiene=data.devops?.hygiene||0; state.devopsNonCompliant=data.devops?.nonCompliant||0; state.devopsLargestGap=data.devops?.largestGap||''; state.devopsItems=Array.isArray(data.devops?.items)?data.devops.items:[];
+    const liveDevopsItems=Array.isArray(data.devops?.items)?data.devops.items:[];
+    if(liveDevopsItems.length){
+      state.devopsMockMode=false; state.devopsItems=liveDevopsItems;
+      state.devopsHygiene=data.devops?.hygiene||devopsMetrics(liveDevopsItems).hygiene;
+      state.devopsNonCompliant=data.devops?.nonCompliant??devopsMetrics(liveDevopsItems).nonCompliant;
+      state.devopsLargestGap=data.devops?.largestGap||devopsMetrics(liveDevopsItems).largestGap;
+    } else {
+      state.devopsMockMode=true; state.devopsItems=buildMockDevopsItems();
+      const dm=devopsMetrics(state.devopsItems); state.devopsHygiene=dm.hygiene; state.devopsNonCompliant=dm.nonCompliant; state.devopsLargestGap=dm.largestGap;
+    }
     state.trend=Array.isArray(data.trend)?data.trend:[]; state.aiBriefing=data.aiBriefing||null; state.lastRefresh=new Date(data.generatedAt||Date.now());
     if(showToast) toast('Live Moveworks data refreshed');
   } catch(err) { state.live=false; state.triggerOnly=false; state.statusMessage=''; state.error=err.message; }
@@ -1117,6 +1207,24 @@ function openSlaReassign(incidentNumber) {
   document.body.appendChild(overlay);
 }
 
+
+function openDevopsReassign(workItemId) {
+  const item=(state.devopsItems||[]).find(x=>String(x.id||x.number)===String(workItemId));
+  if(!item) return toast(`Work item ${workItemId} was not found.`);
+  state.selectedDevopsItem=item;
+  const overlay=document.createElement('div'); overlay.className='modalback'; overlay.id='devopsAssignModal';
+  overlay.innerHTML=`<div class="modal reassign-modal">
+    <h2>Reassign ${escapeHtml(item.id||item.number)}</h2>
+    <p>${escapeHtml(item.type||'Work Item')} · ${escapeHtml(item.title||'')}</p>
+    <div class="reassign-current"><span>Current owner <strong>${escapeHtml(item.owner||'Unassigned')}</strong></span><span>Sprint <strong>${escapeHtml(item.sprint||'Not set')}</strong></span></div>
+    <label class="modal-field"><span>New owner</span><input id="devopsOwnerInput" class="search" placeholder="Enter new owner"></label>
+    <label class="modal-field"><span>Reason</span><input id="devopsAssignReason" class="search" value="DevOps governance remediation"></label>
+    <div class="modal-note">${state.devopsMockMode?'MVP demo mode: this updates the mock work item in the browser. A live version can call the Azure DevOps Work Item REST API through the governed backend.':'This demo updates the dashboard state only; live Azure DevOps update integration is not configured yet.'}</div>
+    <div class="modalactions">${button('Cancel','closeDevopsModal')}${button('Reassign owner','confirmDevopsReassign','',true)}</div>
+  </div>`;
+  document.body.appendChild(overlay);
+}
+
 async function handleAction(action,arg) {
   if(action==='openPresentation'){state.page='presentation';render();return;}
   if(action==='closePresentation'){stopPresentation(false);state.page='agent';render();return;}
@@ -1152,6 +1260,24 @@ async function handleAction(action,arg) {
   if(action==='closeRcaModal'){document.getElementById('rcaModal')?.remove();return;}
   if(action==='readRca'){const row=findSlaIncident(arg);const text=rcaTextForIncident(row);if(text)speakText(text);return;}
   if(action==='clearSlaFilters'){state.slaStatusFilter='all';state.slaGroupFilter='all';state.slaSearch='';render();return;}
+  if(action==='clearDevopsFilters'){state.devopsTypeFilter='all';state.devopsComplianceFilter='all';state.devopsSearch='';render();return;}
+  if(action==='reassignDevops') return openDevopsReassign(arg);
+  if(action==='closeDevopsModal'){document.getElementById('devopsAssignModal')?.remove();return;}
+  if(action==='confirmDevopsReassign'){
+    const owner=document.getElementById('devopsOwnerInput')?.value.trim()||'';
+    if(!owner||!state.selectedDevopsItem) return toast('Enter a new owner.');
+    const id=state.selectedDevopsItem.id||state.selectedDevopsItem.number;
+    const item=(state.devopsItems||[]).find(x=>String(x.id||x.number)===String(id));
+    if(item){
+      item.owner=owner;
+      item.missing=(item.missing||[]).filter(x=>String(x).toLowerCase()!=='assignee'&&String(x).toLowerCase()!=='owner'&&String(x).toLowerCase()!=='business owner');
+      item.score=Math.min(100,(Number(item.score)||0)+15);
+      const metrics=devopsMetrics(state.devopsItems); state.devopsHygiene=metrics.hygiene; state.devopsNonCompliant=metrics.nonCompliant; state.devopsLargestGap=metrics.largestGap;
+    }
+    document.getElementById('devopsAssignModal')?.remove();
+    toast(`${id} reassigned to ${owner}${state.devopsMockMode?' (MVP mock)':''}`);
+    render(); return;
+  }
   if(action==='reassignSla') return openSlaReassign(arg);
   if(action==='nav'){state.page=arg;render();return;} if(action==='assign')return openAssign(arg); if(action==='closeModal'){document.getElementById('assignModal')?.remove();return;}
   if(action==='confirmAssign') { const input=document.getElementById('assigneeSelect'); if(!state.selectedTicket||!input?.value.trim()) return toast('Enter an assignee.'); try { await api(`/api/tickets/${encodeURIComponent(state.selectedTicket.id)}/assign`,{method:'POST',body:JSON.stringify({assignee:input.value.trim()})}); toast(`${state.selectedTicket.id} assignment requested through Moveworks`); document.getElementById('assignModal')?.remove(); await refreshDashboard(); } catch(err){toast(err.message);} return; }
@@ -1187,11 +1313,14 @@ document.addEventListener('click',e=>{const navEl=e.target.closest('[data-nav]')
 document.addEventListener('input',e=>{
   if(e.target.id==='ticketSearch'){state.search=e.target.value;render();const el=document.getElementById('ticketSearch');if(el){el.focus();el.setSelectionRange(state.search.length,state.search.length);}}
   if(e.target.id==='slaSearch'){state.slaSearch=e.target.value;render();const el=document.getElementById('slaSearch');if(el){el.focus();el.setSelectionRange(state.slaSearch.length,state.slaSearch.length);}}
+  if(e.target.id==='devopsSearch'){state.devopsSearch=e.target.value;render();const el=document.getElementById('devopsSearch');if(el){el.focus();el.setSelectionRange(state.devopsSearch.length,state.devopsSearch.length);}}
   if(e.target.id==='agentPrompt') window.__agentDraft=e.target.value;
 });
 document.addEventListener('change',e=>{
   if(e.target.id==='slaStatusFilter'){state.slaStatusFilter=e.target.value;render();}
   if(e.target.id==='slaGroupFilter'){state.slaGroupFilter=e.target.value;render();}
+  if(e.target.id==='devopsTypeFilter'){state.devopsTypeFilter=e.target.value;render();}
+  if(e.target.id==='devopsComplianceFilter'){state.devopsComplianceFilter=e.target.value;render();}
 });
 document.addEventListener('change',e=>{
   if(e.target.id==='pptxUpload'&&e.target.files?.[0]) loadPresentationFile(e.target.files[0]);

@@ -16,6 +16,6 @@ const server=fs.readFileSync(path.join(root,'server.js'),'utf8');
 if (!server.includes('MOVEWORKS_RCA_URL')) throw new Error('Direct RCA endpoint configuration missing');
 if (!server.includes("mode: 'synchronous-rca'")) throw new Error('Synchronous RCA response mode missing');
 if (!server.includes('p.ai_analysis')) throw new Error('RCA ai_analysis extraction missing');
-if (!html.includes('app.js?v=12.6.0')) throw new Error('Frontend cache-bust version missing');
+if (!html.includes('app.js?v=12.7.0')) throw new Error('Frontend cache-bust version missing');
 new Function(js);
 console.log('Static smoke test passed.');
