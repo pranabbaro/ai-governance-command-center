@@ -1,3 +1,16 @@
+# v12.9.5 — Compact Project Management Lifecycle Footer
+
+Only the Project Management Lifecycle embedded page layout was adjusted:
+
+- The embedded application now expands to use the available page height.
+- **Back to Command Center** and **Open in new tab** are kept in a small footer directly below the embedded application.
+- The buttons no longer sit inside or create a large empty card/space.
+- Existing App Service URL and Moveworks backend remain unchanged.
+
+No other application functionality or page was changed.
+
+---
+
 # v12.9.4 — Remove Project Management Lifecycle Top Header
 
 Only the Project Management Lifecycle page was changed.

@@ -189,9 +189,11 @@ function renderCommand() {
 function renderProjectPilot() {
   return layout(`<section class="project-embed-shell project-embed-clean">
     <iframe class="project-embed-frame" src="https://projectpilot-ai-mvp-bhf0apataxa5cphp.centralindia-01.azurewebsites.net/#dashboard" title="Project Management Lifecycle"></iframe>
-    <div class="project-embed-actions-bottom">
-      <button class="btn" data-action="nav" data-arg="command">← Back to Command Center</button>
-      <button class="btn primary" data-action="openProjectPilotExternal">Open in new tab ↗</button>
+    <div class="project-embed-footer">
+      <div class="project-embed-actions-bottom">
+        <button class="btn" data-action="nav" data-arg="command">← Back to Command Center</button>
+        <button class="btn primary" data-action="openProjectPilotExternal">Open in new tab ↗</button>
+      </div>
     </div>
   </section>`);
 }

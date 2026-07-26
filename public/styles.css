@@ -688,3 +688,14 @@
 
 /* v12.9.4: Project Management Lifecycle uses the embedded app directly under the left navigation shell */
 .project-lifecycle-main{padding-top:12px}
+
+/* v12.9.5: keep Project Management Lifecycle controls as a small footer below the embedded app */
+.project-embed-clean{display:flex;flex-direction:column;min-height:calc(100vh - 24px)}
+.project-embed-clean .project-embed-frame{flex:1 1 auto;height:auto;min-height:calc(100vh - 76px);margin:0}
+.project-embed-footer{flex:0 0 auto;display:flex;justify-content:flex-end;padding:8px 2px 0;background:transparent}
+.project-embed-actions-bottom{margin:0;padding:0;display:flex;gap:8px;justify-content:flex-end;align-items:center}
+@media(max-width:900px){
+  .project-embed-clean{min-height:calc(100vh - 18px)}
+  .project-embed-clean .project-embed-frame{min-height:calc(100vh - 86px)}
+  .project-embed-footer,.project-embed-actions-bottom{justify-content:flex-start}
+}

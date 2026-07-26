@@ -1,8 +1,8 @@
 {
   "name": "ai-governance-command-center-appservice",
   "private": true,
-  "version": "12.9.4",
-  "description": "AI Operations Agent with headerless Project Management Lifecycle embedded view",
+  "version": "12.9.5",
+  "description": "AI Operations Agent with compact Project Management Lifecycle footer controls",
   "engines": {
     "node": ">=20"
   },
