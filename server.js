@@ -518,37 +518,72 @@ const server = http.createServer(async (req, res) => {
       if (!prompt) return sendJson(res, 400, { error: 'prompt is required' });
       const immediate = immediateGovernanceAnswer(prompt);
       if (immediate) return sendJson(res, 200, { answer: immediate, mode: 'instant-kpi' });
+
+      const startedAt = new Date().toISOString();
+      const reqId = requestId();
+      const incidentNumber = extractIncidentNumber(prompt);
+      const rcaIntent = isRcaPrompt(prompt);
+
+      // Incident RCA is asynchronous by design: Moveworks generates the RCA and
+      // POSTs the completed result back to /api/moveworks/result.  Never treat the
+      // initial listener response as the final AI answer, even when MOVEWORKS_AI_URL
+      // is configured.  Otherwise the browser stops polling before the RCA callback.
+      if (rcaIntent) {
+        const rcaUrl = process.env.MOVEWORKS_TRIGGER_URL || process.env.MOVEWORKS_AI_URL;
+        if (!rcaUrl) return sendJson(res, 503, { error: 'MOVEWORKS_TRIGGER_URL or MOVEWORKS_AI_URL is not configured' });
+        const callbackUrl = `${externalBaseUrl(req)}/api/moveworks/result`;
+        const payload = await callMoveworks(rcaUrl, {
+          method: 'POST',
+          body: {
+            event_type: 'ticket_governance.incident_rca',
+            prompt,
+            incident_number: incidentNumber,
+            request_id: reqId,
+            // Compatibility aliases are harmless and make listener mapping easier.
+            incidentNumber: incidentNumber,
+            requestId: reqId,
+            intent: 'incident_rca',
+            user_email: body.user_email || process.env.DEFAULT_NOTIFICATION_EMAIL || undefined,
+            context: body.context || 'dashboard',
+            source: 'azure_app_service_dashboard',
+            requested_at: startedAt,
+            callback_url: callbackUrl
+          }
+        });
+        return sendJson(res, 202, {
+          answer: `Moveworks is analyzing ${incidentNumber}. Waiting for the RCA callback…`,
+          mode: 'webhook-trigger',
+          requestId: reqId,
+          incidentNumber,
+          startedAt,
+          callbackUrl,
+          moveworks: process.env.EXPOSE_UPSTREAM_RAW === 'true' ? payload : undefined
+        });
+      }
+
+      // Non-RCA AI prompts can keep using the existing synchronous AI endpoint.
       if (process.env.MOVEWORKS_AI_URL) {
-        const reqId = requestId();
-        const incidentNumber = extractIncidentNumber(prompt);
         const payload = await callMoveworks(process.env.MOVEWORKS_AI_URL, {
           method: 'POST',
           body: {
             prompt,
-            incident_number: incidentNumber || undefined,
             request_id: reqId,
-            intent: isRcaPrompt(prompt) ? 'incident_rca' : 'governance_ai',
+            intent: 'governance_ai',
             user_email: body.user_email || process.env.DEFAULT_NOTIFICATION_EMAIL || undefined,
             context: body.context || 'dashboard'
           }
         });
         return sendJson(res, 200, { answer: pickAiAnswer(payload), mode: 'synchronous-ai', requestId: reqId, raw: process.env.EXPOSE_UPSTREAM_RAW === 'true' ? payload : undefined });
       }
+
       if (!process.env.MOVEWORKS_TRIGGER_URL) return sendJson(res, 503, { error: 'MOVEWORKS_AI_URL or MOVEWORKS_TRIGGER_URL is not configured' });
-      const startedAt = new Date().toISOString();
-      const reqId = requestId();
-      const incidentNumber = extractIncidentNumber(prompt);
-      const rcaIntent = isRcaPrompt(prompt);
       const payload = await callMoveworks(process.env.MOVEWORKS_TRIGGER_URL, {
         method: 'POST',
         body: {
           event_type: 'ticket_governance.ai_prompt',
           prompt,
-          // These two fields are intentionally top-level so the Moveworks listener
-          // can map them directly to SLA_Breach_AI_Analysis input arguments.
-          incident_number: incidentNumber || undefined,
           request_id: reqId,
-          intent: rcaIntent ? 'incident_rca' : 'governance_ai',
+          intent: 'governance_ai',
           user_email: body.user_email || process.env.DEFAULT_NOTIFICATION_EMAIL || undefined,
           context: body.context || 'dashboard',
           source: 'azure_app_service_dashboard',
@@ -557,7 +592,7 @@ const server = http.createServer(async (req, res) => {
         }
       });
       return sendJson(res, 202, {
-        answer: rcaIntent && incidentNumber ? `Moveworks is analyzing ${incidentNumber}. Waiting for the RCA callback…` : 'Moveworks accepted the governance request. Waiting for the live governance callback…',
+        answer: 'Moveworks accepted the governance request. Waiting for the live governance callback…',
         mode: 'webhook-trigger',
         requestId: reqId,
         startedAt,

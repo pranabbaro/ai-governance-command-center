@@ -108,3 +108,10 @@ Use Microsoft Edge or Google Chrome and allow microphone access.
 - Supports incident number, incident name, assignment group, assignee, priority, state, SLA percentage and SLA name.
 - Explicit list requests now take precedence over count-only answers.
 - The robot speaks the total plus a short preview; **View Full Analysis** displays every returned incident record.
+
+
+## v12.3.4 RCA async callback fix
+- Incident RCA prompts always use asynchronous callback mode.
+- The browser continues polling until the matching request_id callback arrives.
+- Existing governance dashboard snapshot/counts remain isolated from RCA results.
+- Sends both request_id/requestId and incident_number/incidentNumber for listener-mapping compatibility.
