@@ -87,8 +87,9 @@ function immediateGovernanceAnswer(prompt) {
   const mentionsIncident = /\b(incident|incidents|inc)\b/.test(q);
 
   if ((mentionsSla || mentionsIncident) && mentionsBreach) {
-    const incidentNote = mentionsIncident
-      ? ' This value is the count of breached SLA records. The current feed does not yet de-duplicate them into unique incident IDs.'
+    const detailCount = Array.isArray(d.slaBreaches) ? d.slaBreaches.length : 0;
+    const incidentNote = mentionsIncident && detailCount
+      ? ` Incident details are available for ${detailCount} returned SLA records.`
       : '';
     return `**${breached} breached SLA records** are currently reported in the latest live ServiceNow governance data.${incidentNote}`;
   }
@@ -177,6 +178,38 @@ function normalizeTicket(t = {}) {
   };
 }
 
+function normalizeSlaBreach(b = {}) {
+  const display = value => {
+    if (value && typeof value === 'object') return value.display_value ?? value.value ?? '';
+    return value ?? '';
+  };
+  const incidentNumber = display(b.incident_number || b.number || b.id || b['task.number'] || b.task);
+  const incidentName = display(b.incident_name || b.summary || b.short_description || b.description || b['task.short_description']);
+  const team = display(b.assignment_group || b.team || b['task.assignment_group']);
+  const assignee = display(b.assigned_to || b.assignee || b['task.assigned_to']);
+  const priority = display(b.priority || b['task.priority']);
+  const state = display(b.state || b.status || b['task.state']);
+  const percentage = display(b.percentage || b.breach);
+  const slaName = display(b.sla);
+  const plannedEndTime = display(b.planned_end_time || b.plannedEndTime);
+  return {
+    ...b,
+    id: incidentNumber || 'SLA',
+    number: incidentNumber || '',
+    summary: incidentName || 'Breached SLA record',
+    description: incidentName || '',
+    team,
+    assignee,
+    priority,
+    state,
+    status: state || 'Breached',
+    percentage,
+    breach: percentage,
+    sla: slaName,
+    plannedEndTime
+  };
+}
+
 function normalizeDashboardPayload(payload) {
   const p = unwrap(payload);
   const ageing = unwrap(p.ageing || p.ageing_result || p.morning || {});
@@ -184,7 +217,7 @@ function normalizeDashboardPayload(payload) {
   const daily = unwrap(p.daily || p.effectiveness || {});
   const devops = unwrap(p.devops || p.devops_result || {});
   const ticketsRaw = p.tickets || ageing.tickets || p.ageing_tickets || [];
-  const slaBreachesRaw = p.slaBreaches || p.sla_breaches || sla.breaches || [];
+  const slaBreachesRaw = p.slaBreaches || p.sla_breaches || p.breached_incidents || sla.breaches || sla.breached_incidents || [];
   const devopsItemsRaw = p.devopsItems || p.devops_items || devops.items || [];
 
   const incidentCount = num(ageing.incident_count ?? ageing.incidents ?? p.incident_count);
@@ -210,7 +243,7 @@ function normalizeDashboardPayload(payload) {
       backlogReduction: daily.backlogReduction ?? daily.backlog_reduction ?? null
     },
     tickets: Array.isArray(ticketsRaw) ? ticketsRaw.map(normalizeTicket) : [],
-    slaBreaches: Array.isArray(slaBreachesRaw) ? slaBreachesRaw : [],
+    slaBreaches: Array.isArray(slaBreachesRaw) ? slaBreachesRaw.map(normalizeSlaBreach) : [],
     devops: {
       hygiene: num(devops.hygiene ?? devops.overall_hygiene ?? p.devops_hygiene),
       nonCompliant: num(devops.non_compliant ?? devops.nonCompliant),
@@ -231,13 +264,16 @@ function normalizeCallbackPayload(payload) {
     generatedAt: p.generatedAt || p.generated_at || p.receivedAt || p.received_at || new Date().toISOString()
   };
 
-  if (!callback.sla && (p.at_risk_count !== undefined || p.critical_count !== undefined || p.breached_count !== undefined || p.total_sla_attention !== undefined)) {
+  if (!callback.sla && (p.at_risk_count !== undefined || p.critical_count !== undefined || p.breached_count !== undefined || p.total_sla_attention !== undefined || Array.isArray(p.breached_incidents))) {
     callback.sla = {
       at_risk_count: p.at_risk_count,
       critical_count: p.critical_count,
       breached_count: p.breached_count,
-      total_sla_attention: p.total_sla_attention
+      total_sla_attention: p.total_sla_attention,
+      breached_incidents: Array.isArray(p.breached_incidents) ? p.breached_incidents : []
     };
+  } else if (callback.sla && Array.isArray(p.breached_incidents) && !Array.isArray(callback.sla.breached_incidents)) {
+    callback.sla.breached_incidents = p.breached_incidents;
   }
   if (!callback.ageing && (p.incident_count !== undefined || p.ritm_count !== undefined || p.task_count !== undefined || p.total_ageing_count !== undefined)) {
     callback.ageing = {
@@ -312,7 +348,7 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 200, {
       status: 'ok',
       service: 'ai-governance-command-center',
-      version: '12.2.0',
+      version: '12.3.0',
       moveworksConfigured: Boolean(process.env.MOVEWORKS_DASHBOARD_URL || process.env.MOVEWORKS_AGEING_URL || process.env.MOVEWORKS_SLA_URL || process.env.MOVEWORKS_TRIGGER_URL),
       aiConfigured: Boolean(process.env.MOVEWORKS_AI_URL || process.env.MOVEWORKS_TRIGGER_URL),
       triggerConfigured: Boolean(process.env.MOVEWORKS_TRIGGER_URL),

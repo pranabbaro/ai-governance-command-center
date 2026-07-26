@@ -99,7 +99,7 @@ function renderAgeing() {
 }
 
 function renderSla() {
-  const cards = state.slaBreaches.length ? state.slaBreaches.map(x=>`<div class="slacard"><div class="cardhead"><strong>${escapeHtml(x.id||x.number||'SLA')}</strong>${badge(x.team||'ServiceNow')}</div><p>${escapeHtml(x.summary||x.description||'Breached SLA record')}</p><div class="slameta"><span>Breach <strong>${escapeHtml(x.breach||x.percentage||'')}</strong></span><span>AI RCA <strong>${escapeHtml(x.cause||'Available via Ask AI')}</strong></span><span>Confidence <strong>${escapeHtml(x.confidence||'')}</strong></span></div>${button('Investigate with AI','aiPrompt',`Analyze SLA breach ${x.id||x.number||''}`,true)}</div>`).join('') : '<div class="empty">No detailed breach records returned by the dashboard endpoint.</div>';
+  const cards = state.slaBreaches.length ? state.slaBreaches.map(x=>`<div class="slacard"><div class="cardhead"><strong>${escapeHtml(x.incident_number||x.id||x.number||'SLA')}</strong>${badge(x.team||x.assignment_group||'ServiceNow')}</div><p>${escapeHtml(x.incident_name||x.summary||x.description||'Breached SLA record')}</p><div class="slameta"><span>Breach <strong>${escapeHtml(x.breach||x.percentage||'')}</strong></span><span>AI RCA <strong>${escapeHtml(x.cause||'Available via Ask AI')}</strong></span><span>Confidence <strong>${escapeHtml(x.confidence||'')}</strong></span></div>${button('Investigate with AI','aiPrompt',`Analyze SLA breach ${x.id||x.number||''}`,true)}</div>`).join('') : '<div class="empty">No detailed breach records returned by the dashboard endpoint.</div>';
   return layout(`<section class="metrics four">${metric('SLA At Risk',state.slaAtRisk,'≥75% consumed','orange')}${metric('Critical SLA',state.slaCritical,'≥90% consumed','red')}${metric('SLA Breached',state.slaBreached,'Requires investigation','red')}${metric('Total SLA Attention',state.slaTotalAttention,'At risk + breached','purple')}</section><section class="card ai-card-shell">${aiInsightCard(false)}</section><section class="card"><h2>SLA Breach Intelligence</h2><div class="slagrid">${cards}</div></section>`);
 }
 
@@ -121,12 +121,12 @@ function renderAi(answer='') {
 function agentTicketRows(kind='breached') {
   const slaRows = Array.isArray(state.slaBreaches) ? state.slaBreaches : [];
   if (kind === 'breached' && slaRows.length) return slaRows.map((x,i)=>({
-    id:x.id||x.number||x.task?.display_value||x.task||`SLA-${i+1}`,
-    title:x.summary||x.short_description||x.description||'Breached SLA record',
+    id:x.incident_number||x.id||x.number||x.task?.display_value||x.task||`SLA-${i+1}`,
+    title:x.incident_name||x.summary||x.short_description||x.description||'Breached SLA record',
     team:x.team||x.assignment_group?.display_value||x.assignment_group||'',
     assignee:x.assignee||x.assigned_to?.display_value||x.assigned_to||'',
-    status:'Breached',
-    risk:x.risk||x.risk_score||x.percentage||''
+    status:x.state||x.status||'Breached',
+    risk:x.priority||x.risk||x.risk_score||x.percentage||''
   }));
   const rows = Array.isArray(state.tickets) ? state.tickets : [];
   return rows.filter(t => kind === 'breached' ? String(t.sla||'').toLowerCase().includes('breach') : kind === 'atrisk' ? String(t.sla||'').toLowerCase().includes('risk') : true);
@@ -135,15 +135,17 @@ function agentTicketRows(kind='breached') {
 function localOperationalResult(prompt) {
   const clean=String(prompt||'').trim();
   const q=clean.toLowerCase().replace(/[’']/g,'').replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
-  const direct=liveKpiAnswer(clean,state);
-  if(direct) return {kind:'kpi', answer:direct};
   const wantsShow=/\b(show|list|display|give me|find|get)\b/.test(q);
   const mentionsBreach=/\b(breach|breached|breaches)\b/.test(q);
   const mentionsSla=/\bsla\b/.test(q);
-  if(wantsShow && mentionsBreach && mentionsSla) {
+  if(wantsShow && mentionsBreach && (mentionsSla || /\b(incident|incidents|ticket|tickets)\b/.test(q))) {
     const rows=agentTicketRows('breached');
-    return {kind:'sla-list', rows, answer:`Found **${state.slaBreached} breached SLA records** in the latest live governance result.${rows.length?' Ticket details are shown below.':' The current callback contains the count, but not individual ticket records yet.'}`};
+    const preview=rows.slice(0,5).map(x=>x.id).filter(Boolean).join(', ');
+    const detailText=rows.length ? ` Incident details are available for ${rows.length} returned SLA records.${preview?` First records: ${preview}.`:''} Open View Full Analysis to see the complete list.` : ' The current callback contains the count, but not individual ticket records yet.';
+    return {kind:'sla-list', rows, answer:`Found **${state.slaBreached} breached SLA records** in the latest live governance result.${detailText}`};
   }
+  const direct=liveKpiAnswer(clean,state);
+  if(direct) return {kind:'kpi', answer:direct};
   if(wantsShow && /\b(at risk|risk)\b/.test(q) && mentionsSla) {
     const rows=agentTicketRows('atrisk');
     return {kind:'sla-list', rows, answer:`Found **${state.slaAtRisk} SLA records at risk** in the latest live governance result.${rows.length?' Ticket details are shown below.':' The current callback contains the count, but not individual ticket records yet.'}`};
@@ -745,7 +747,7 @@ async function loadPresentationFile(file) {
 
 function resultTicketTable(rows=[]) {
   if(!rows.length) return `<div class="result-note">Individual ticket records are not included in the current callback yet. The MVP is ready to render ticket numbers automatically once the Moveworks callback includes the records.</div>`;
-  return `<div class="result-table"><table><thead><tr><th>Ticket</th><th>Status</th><th>Team / Owner</th><th>Risk</th></tr></thead><tbody>${rows.slice(0,20).map(x=>`<tr><td><strong>${escapeHtml(x.id||x.number||'')}</strong><div class="muted">${escapeHtml(x.title||x.summary||'')}</div></td><td>${badge(x.status||x.sla||'Breached','danger')}</td><td>${escapeHtml(x.team||'')}<div class="muted">${escapeHtml(x.assignee||'')}</div></td><td>${escapeHtml(x.risk||'—')}</td></tr>`).join('')}</tbody></table></div>`;
+  return `<div class="result-table"><table><thead><tr><th>Ticket</th><th>Status</th><th>Team / Owner</th><th>Risk</th></tr></thead><tbody>${rows.map(x=>`<tr><td><strong>${escapeHtml(x.id||x.number||'')}</strong><div class="muted">${escapeHtml(x.title||x.summary||'')}</div></td><td>${badge(x.status||x.sla||'Breached','danger')}</td><td>${escapeHtml(x.team||'')}<div class="muted">${escapeHtml(x.assignee||'')}</div></td><td>${escapeHtml(x.risk||'—')}</td></tr>`).join('')}</tbody></table></div>`;
 }
 
 function renderResults() {

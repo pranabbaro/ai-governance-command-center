@@ -6,7 +6,7 @@ for (const file of ['server.js','public/index.html','public/app.js','public/styl
 }
 const js = fs.readFileSync(path.join(root, 'public/app.js'), 'utf8');
 const html = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
-for (const text of ['AI Operations Agent','Command Center','Ageing Tickets','SLA Intelligence','DevOps Governance','Ask Governance AI','Send EOD Report','Moveworks Hackathon','AI SLA Intelligence','Refresh live data','liveKpiAnswer','breached SLA records','startVoice','readAloud','AI OPERATIONS RESULT','SLA Breaches','Presentation Mode','parsePptxFile','startPresentation','presentationVoice','AGENT_IDENTITY','detectAgentIdentityIntent','answerAgentIdentity','July 22, 2026']) {
+for (const text of ['AI Operations Agent','Command Center','Ageing Tickets','SLA Intelligence','DevOps Governance','Ask Governance AI','Send EOD Report','Moveworks Hackathon','AI SLA Intelligence','Refresh live data','liveKpiAnswer','breached SLA records','startVoice','readAloud','AI OPERATIONS RESULT','SLA Breaches','Presentation Mode','parsePptxFile','startPresentation','presentationVoice','AGENT_IDENTITY','detectAgentIdentityIntent','answerAgentIdentity','July 22, 2026','incident_number','Open View Full Analysis']) {
   if (!js.includes(text) && !html.includes(text)) throw new Error(`Expected UI text not found: ${text}`);
 }
 for (const endpoint of ['/api/dashboard','/api/ai/query','/api/moveworks/result','/api/reports/eod']) {

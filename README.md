@@ -100,3 +100,11 @@ Use Microsoft Edge or Google Chrome and allow microphone access.
 - Next, Previous and Auto Advance keep PPTX slide number and PDF page number aligned.
 - New PPTX/PDF pairs can be loaded without redeploying the application.
 - Without a PDF, the existing reconstructed HTML preview remains available.
+
+
+## V12.3 — SLA breached incident details
+- Preserves the V12.2 robot, layout, presentation mode, voice and Moveworks integration.
+- Maps Moveworks `breached_incidents` callback records into the existing SLA dashboard/result model.
+- Supports incident number, incident name, assignment group, assignee, priority, state, SLA percentage and SLA name.
+- Explicit list requests now take precedence over count-only answers.
+- The robot speaks the total plus a short preview; **View Full Analysis** displays every returned incident record.
