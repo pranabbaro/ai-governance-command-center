@@ -100,3 +100,12 @@ Use Microsoft Edge or Google Chrome and allow microphone access.
 - Next, Previous and Auto Advance keep PPTX slide number and PDF page number aligned.
 - New PPTX/PDF pairs can be loaded without redeploying the application.
 - Without a PDF, the existing reconstructed HTML preview remains available.
+
+
+## V13.0 — Safe Robot Lip Animation
+- Built directly on the working V12.2 package.
+- Adds a lightweight mouth overlay that animates only while browser speech synthesis is active.
+- Preserves the approved robot image, desktop layout, mobile layout, dashboard, Moveworks integration, personality, and PPTX/PDF Presentation Mode.
+- No paid avatar service or additional Azure service is required.
+- This is speech-timed animation rather than phoneme/viseme-accurate lip synchronization.
+- Respects the browser reduced-motion accessibility preference.

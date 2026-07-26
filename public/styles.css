@@ -624,3 +624,60 @@
 .v122-pdf-slide .v12-slide-label{flex:0 0 auto;padding:2px 4px 10px;color:#65d9ff}
 .v122-pdf-frame{width:100%;flex:1 1 auto;min-height:0;border:0;border-radius:6px;background:#fff}
 @media(max-width:900px){.v122-pdf-slide{height:58dvh!important;min-height:430px!important}.v122-pdf-frame{min-height:390px}}
+
+
+/* =========================================================
+   V13.0 — SAFE SPEECH-TIMED ROBOT LIP ANIMATION
+   Additive overlay only: the approved robot image and layout remain intact.
+   ========================================================= */
+.v13-robot-avatar{
+  position:relative;
+  height:100%;
+  max-width:100%;
+  aspect-ratio:590 / 700;
+  display:block;
+  margin:auto;
+  flex:0 1 auto;
+}
+.v13-robot-avatar>img{
+  position:absolute;
+  inset:0;
+  width:100%!important;
+  height:100%!important;
+  object-fit:contain!important;
+  display:block;
+}
+.v13-mouth{
+  position:absolute;
+  z-index:4;
+  left:45.75%;
+  top:16.15%;
+  width:4.5%;
+  height:.48%;
+  min-height:2px;
+  transform:translate(-50%,-50%) scaleY(.5);
+  transform-origin:center;
+  border-radius:50%;
+  opacity:.82;
+  background:linear-gradient(180deg,#03101e,#071a30 55%,#25bfff);
+  box-shadow:0 0 3px rgba(66,205,255,.72);
+  pointer-events:none;
+  transition:transform 90ms ease,opacity 120ms ease;
+}
+.v13-speaking .v13-mouth{
+  opacity:.98;
+  animation:v13LipSync 460ms steps(1,end) infinite;
+}
+@keyframes v13LipSync{
+  0%{height:.48%;width:4.5%;transform:translate(-50%,-50%) scaleY(.55);border-radius:50%}
+  13%{height:1.25%;width:4.05%;transform:translate(-50%,-50%) scaleY(1);border-radius:45%}
+  27%{height:.72%;width:4.8%;transform:translate(-50%,-50%) scaleY(.8);border-radius:50%}
+  41%{height:1.55%;width:3.75%;transform:translate(-50%,-50%) scaleY(1);border-radius:48%}
+  55%{height:.5%;width:4.35%;transform:translate(-50%,-50%) scaleY(.45);border-radius:50%}
+  68%{height:1.05%;width:4.65%;transform:translate(-50%,-50%) scaleY(1);border-radius:48%}
+  82%{height:1.38%;width:3.95%;transform:translate(-50%,-50%) scaleY(1);border-radius:45%}
+  100%{height:.48%;width:4.5%;transform:translate(-50%,-50%) scaleY(.55);border-radius:50%}
+}
+@media (prefers-reduced-motion:reduce){
+  .v13-speaking .v13-mouth{animation:none;transform:translate(-50%,-50%) scaleY(1.4)}
+}

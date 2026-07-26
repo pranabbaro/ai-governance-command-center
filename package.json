@@ -1,8 +1,8 @@
 {
   "name": "ai-governance-command-center-appservice",
   "private": true,
-  "version": "12.2.0",
-  "description": "AI Operations Agent with original PDF slide visuals plus PPTX narration",
+  "version": "13.0.0",
+  "description": "AI Operations Agent V13 with safe speech-timed robot lip animation and preserved V12.2 features",
   "engines": {
     "node": ">=20"
   },
