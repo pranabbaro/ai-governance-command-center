@@ -7,11 +7,11 @@ const state = {
   slaAtRisk: 0, slaCritical: 0, slaBreached: 0, slaTotalAttention: 0, slaCompliance: null,
   slaStatusFilter: 'all', slaGroupFilter: 'all', slaSearch: '',
   devopsHygiene: 0, devopsNonCompliant: 0, devopsLargestGap: '', devopsTypeFilter:'all', devopsComplianceFilter:'all', devopsSearch:'', devopsView:'hierarchy',
-  tickets: [], slaBreaches: [], slaIncidentCount: 0, devopsItems: [], devopsMockMode:false, trend: [], aiBriefing: null
+  tickets: [], slaBreaches: [], slaIncidentCount: 0, devopsItems: [], devopsMockMode:false, trend: [], aiBriefing: null, commandAiAnswer:'', commandAiBusy:false
 };
 
 const nav = [
-  ['agent','AI Operations Agent','✦'], ['command','Command Center','⌂'], ['ageing','Ageing Tickets','◷'], ['sla','SLA Intelligence','✓'],
+  ['agent','AI Operations Agent','✦'], ['command','Command Center','⌂'], ['sla','Incident SLA Intelligence','✓'],
   ['devops','DevOps Governance','▣'], ['ai','Ask Governance AI','◈'], ['presentation','Presentation Mode','▶']
 ];
 
@@ -166,8 +166,8 @@ function ticketTable(rows) {
 }
 
 function renderCommand() {
-  const highest=[...state.tickets].sort((a,b)=>(b.risk||0)-(a.risk||0)).slice(0,3);
   const trend = state.trend.length ? state.trend.map((x,i)=>`<span>${['Mon','Tue','Wed','Thu','Fri'][i]||`W${i+1}`} ${x}%</span>`).join('') : '<span>No trend snapshot yet</span>';
+  const assistantAnswer=state.commandAiAnswer||'';
   return layout(`<section class="metrics four">
     ${metric('Ageing Tickets',state.ageingTotal,'>15 days and stale >5 days','orange')}
     ${metric('SLA Breaches',state.slaBreached,'Live breached SLA records','red')}
@@ -178,16 +178,16 @@ function renderCommand() {
     <div class="effect"><div><span>Morning</span><strong>${state.morning}</strong></div><div><span>Updated</span><strong>${state.updated}</strong></div><div><span>Closed</span><strong>${state.closed}</strong></div><div><span>Pending</span><strong>${state.pending}</strong></div></div>
     <div class="rate"><span>Action Rate</span><strong>${actionRate()}%</strong></div>${progress(actionRate())}
     <div class="rate secondary"><span>Backlog Reduction</span><strong>${backlogReduction()}%</strong></div><div class="trend">${trend}</div>${button('Send EOD Report','sendEod','',true)}</div>
-    <div class="card"><h2>AI Governance Assistant</h2><p>Ask Moveworks about ageing tickets, SLA risk, RCA or DevOps hygiene.</p>
-      <div class="mini-ai"><input id="quickAiInput" placeholder="Why are our SLAs breaching?">${button('Ask AI','quickAi','',true)}</div><div class="connection-row">${button('Test Moveworks Connection','testMoveworks')}</div>
+    <div class="card command-ai-card"><h2>AI Governance Assistant</h2><p>Same intelligence path as the AI Operations Agent. Ask about SLA, incident RCA, DevOps governance or current KPIs.</p>
+      <div class="mini-ai"><input id="quickAiInput" placeholder="Tell me why SLA is breached for INC5784096">${button(state.commandAiBusy?'Analyzing…':'Ask AI','quickAi','',true)}</div>
+      <div class="command-ai-actions">${button('🎤 Speak','quickAiVoice')}${button('Test Moveworks Connection','testMoveworks')}</div>
+      ${assistantAnswer?`<div class="command-ai-answer"><div class="command-ai-answer-head"><strong>✦ AI Governance Assistant</strong>${button('🔊 Read','readCommandAi')}</div><div>${formatAiText(assistantAnswer)}</div></div>`:''}
       <div class="brief">⚠ <span><strong>${state.slaCritical}</strong> critical SLA items need attention.</span></div>
-      <div class="brief">◷ <span><strong>${state.pending}</strong> ageing tickets remain pending at EOD.</span></div>
     </div></section>
     <section class="card"><div class="cardhead"><div><h2>Breached Incidents</h2><p>Unique incident numbers returned by the latest ServiceNow SLA governance run</p></div>${badge(`${state.slaIncidentCount} incidents`,'danger')}</div>
-      ${state.slaIncidentCount?`<div class="chips">${breachedIncidentNumbers().slice(0,20).map(n=>`<button data-action="aiPrompt" data-arg="Give me RCA for ${escapeHtml(n)}">${escapeHtml(n)}</button>`).join('')}</div>${state.slaIncidentCount>20?`<div class="muted">Showing first 20 of ${state.slaIncidentCount} unique breached incidents. Open SLA Intelligence for the full returned list.</div>`:''}`:'<div class="empty">No breached incident numbers returned yet. Run SLA_Governance to refresh the live incident list.</div>'}
+      ${state.slaIncidentCount?`<div class="chips">${breachedIncidentNumbers().slice(0,20).map(n=>`<button data-action="commandAiPrompt" data-arg="Give me RCA for ${escapeHtml(n)}">${escapeHtml(n)}</button>`).join('')}</div>${state.slaIncidentCount>20?`<div class="muted">Showing first 20 of ${state.slaIncidentCount} unique breached incidents. Open Incident SLA Intelligence for the full returned list.</div>`:''}`:'<div class="empty">No breached incident numbers returned yet. Run SLA_Governance to refresh the live incident list.</div>'}
     </section>
-    <section class="card ai-card-shell">${aiInsightCard(true)}</section>
-    <section class="card"><div class="cardhead"><div><h2>Highest Risk Ageing Tickets</h2><p>Prioritized from live governance data</p></div>${button('View all','nav','ageing')}</div>${ticketTable(highest)}</section>`);
+    <section class="card ai-card-shell">${aiInsightCard(true)}</section>`);
 }
 
 function renderAgeing() {
@@ -236,7 +236,7 @@ function renderSla() {
   return layout(`<section class="metrics four">${metric('SLA At Risk',state.slaAtRisk,'≥75% consumed','orange')}${metric('Critical SLA',state.slaCritical,'≥90% consumed','red')}${metric('SLA Breached',state.slaBreached,'Requires investigation','red')}${metric('Total SLA Attention',state.slaTotalAttention,'At risk + breached','purple')}</section>
     <section class="card ai-card-shell">${aiInsightCard(false)}</section>
     <section class="card">
-      <div class="cardhead sla-filter-head"><div><h2>SLA Breach Intelligence</h2><p>${rows.length} of ${allRows.length} breached incidents shown</p></div><button class="btn" data-action="clearSlaFilters">Clear filters</button></div>
+      <div class="cardhead sla-filter-head"><div><h2>Incident SLA Breach Intelligence</h2><p>${rows.length} of ${allRows.length} breached incidents shown</p></div><button class="btn" data-action="clearSlaFilters">Clear filters</button></div>
       <div class="sla-filterbar">
         <label><span>Status</span><select id="slaStatusFilter" class="search"><option value="all">All statuses</option>${statuses.map(v=>`<option value="${escapeHtml(v)}" ${state.slaStatusFilter===v?'selected':''}>${escapeHtml(v)}</option>`).join('')}</select></label>
         <label><span>Assignment group</span><select id="slaGroupFilter" class="search"><option value="all">All groups</option>${groups.map(v=>`<option value="${escapeHtml(v)}" ${state.slaGroupFilter===v?'selected':''}>${escapeHtml(v)}</option>`).join('')}</select></label>
@@ -1043,7 +1043,7 @@ function startVoice(targetId='agentPrompt') {
   let finalText=''; window.__voiceListening=true; render();
   recognition.onresult=(event)=>{let interim=''; for(let i=event.resultIndex;i<event.results.length;i++){const t=event.results[i][0].transcript;if(event.results[i].isFinal)finalText+=t;else interim+=t;} const text=(finalText||interim).trim(); window.__agentDraft=text; const el=document.getElementById(targetId); if(el) el.value=text;};
   recognition.onerror=(event)=>{window.__voiceListening=false; window.__recognition=null; toast(`Voice input: ${event.error}`); render();};
-  recognition.onend=()=>{window.__voiceListening=false; window.__recognition=null; const text=(finalText||window.__agentDraft||'').trim(); render(); if(text){setTimeout(()=>askAiHome(text,true),180);}};
+  recognition.onend=()=>{window.__voiceListening=false; window.__recognition=null; const text=(finalText||window.__agentDraft||'').trim(); render(); if(text){setTimeout(()=>targetId==='quickAiInput'?askCommandAi(text,true):askAiHome(text,true),180);}};
   try{recognition.start();}catch(err){window.__voiceListening=false; toast(err.message);render();}
 }
 
@@ -1201,6 +1201,54 @@ async function askAiHome(prompt, autoSpeak=true) {
     }
   } catch(err){window.__homeAiAnswer=`Unable to contact Moveworks AI: ${err.message}`;window.__aiAnswer=window.__homeAiAnswer;}
   finally {state.aiBusy=false;state.page='agent';render();if(autoSpeak&&window.__homeAiAnswer)setTimeout(()=>speakText(window.__homeAiAnswer),250);}
+}
+
+
+async function askCommandAi(prompt, autoSpeak=false) {
+  const clean=String(prompt||'').trim();
+  if(!clean) return toast('Enter or speak a question first.');
+
+  const identityIntent=detectAgentIdentityIntent(clean);
+  if(identityIntent) {
+    // Reuse the same personality content as the front-page agent, but keep the user in Command Center.
+    const previousPage=state.page;
+    answerAgentIdentity(identityIntent,false);
+    const answer=window.__homeAiAnswer||window.__aiAnswer||'';
+    state.page='command';
+    state.commandAiAnswer=answer;
+    state.commandAiBusy=false;
+    render();
+    if(autoSpeak&&answer) setTimeout(()=>speakText(answer),200);
+    return;
+  }
+
+  state.commandAiBusy=true;
+  state.commandAiAnswer='';
+  render();
+  try {
+    const local=localOperationalResult(clean);
+    if(local){
+      state.commandAiAnswer=local.answer;
+    } else {
+      const result=await api('/api/ai/query',{method:'POST',body:JSON.stringify({prompt:clean})});
+      if(result.mode==='webhook-trigger'){
+        state.commandAiAnswer=result.answer||'Moveworks accepted the request. Waiting for the live response…';
+        render();
+        const callback=await waitForMoveworksResult(result.startedAt||result.started_at,result.requestId||result.request_id);
+        state.commandAiAnswer=callback?resultSummary(callback,clean):'Moveworks accepted the request, but the workflow is still running.';
+        if(callback) await refreshDashboard(false);
+      } else {
+        state.commandAiAnswer=result.answer||'No AI response was returned.';
+      }
+    }
+  } catch(err) {
+    state.commandAiAnswer=`Unable to contact Moveworks AI: ${err.message}`;
+  } finally {
+    state.commandAiBusy=false;
+    state.page='command';
+    render();
+    if(autoSpeak&&state.commandAiAnswer) setTimeout(()=>speakText(state.commandAiAnswer),200);
+  }
 }
 
 async function askAi(prompt) {
@@ -1362,7 +1410,10 @@ async function handleAction(action,arg) {
   if(action==='sendEod'){try{await api('/api/reports/eod',{method:'POST',body:JSON.stringify({morning:state.morning,updated:state.updated,closed:state.closed,pending:state.pending,action_rate:actionRate(),backlog_reduction:backlogReduction()})});toast('EOD report triggered through Moveworks');}catch(err){toast(err.message);}return;}
   if(action==='aiTicket') return askAi(`Analyze ticket ${arg}. Explain the risk, likely blockers, SLA impact, and recommended next actions.`);
   if(action==='aiPrompt') return askAi(arg);
-  if(action==='quickAi') return askAi(document.getElementById('quickAiInput')?.value||'');
+  if(action==='quickAi') return askCommandAi(document.getElementById('quickAiInput')?.value||'',false);
+  if(action==='commandAiPrompt') return askCommandAi(arg,false);
+  if(action==='quickAiVoice') return startVoice('quickAiInput');
+  if(action==='readCommandAi'){if(state.commandAiAnswer)speakText(state.commandAiAnswer);return;}
   if(action==='analyzeText') return askAi(document.getElementById('aiInput')?.value||'');
 }
 

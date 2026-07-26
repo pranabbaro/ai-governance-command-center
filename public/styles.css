@@ -660,3 +660,9 @@
 .devops-tree-meta{display:flex;gap:12px;flex-wrap:wrap}.devops-tree-meta span{font-size:10px;color:#667085}.devops-tree-meta strong{display:block;color:#344054;margin-top:2px}
 .devops-tree-status{display:flex;gap:4px;flex-wrap:wrap}.depth-1>.devops-tree-row{border-left:4px solid #bae6fd}.depth-2>.devops-tree-row{border-left:4px solid #bbf7d0}.depth-3>.devops-tree-row{border-left:4px solid #fed7aa}
 @media(max-width:1100px){.devops-tree-row{grid-template-columns:1fr}.devops-tree-children{margin-left:16px;padding-left:10px}}
+
+.command-ai-actions{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+.command-ai-answer{margin:14px 0;padding:14px;border:1px solid #cfe0ff;border-radius:12px;background:#f7faff;color:#24324a;line-height:1.55}
+.command-ai-answer-head{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:8px}
+.command-ai-answer .btn{padding:6px 10px}
+@media(max-width:700px){.command-ai-answer-head{align-items:flex-start;flex-direction:column}}

@@ -1,8 +1,8 @@
 {
   "name": "ai-governance-command-center-appservice",
   "private": true,
-  "version": "12.7.1",
-  "description": "AI Operations Agent with visual DevOps work item hierarchy",
+  "version": "12.8.0",
+  "description": "AI Operations Agent with Incident SLA Intelligence and unified Command Center AI assistant",
   "engines": {
     "node": ">=20"
   },

@@ -1,3 +1,15 @@
+# v12.8.0 — Incident SLA Intelligence + Unified Command Center AI
+
+Changes:
+- Renamed SLA Intelligence to Incident SLA Intelligence.
+- Removed the Ageing Tickets navigation tab.
+- Command Center AI Governance Assistant now uses the same local operational logic and Moveworks `/api/ai/query` path as the front-page AI Operations Agent.
+- Command Center assistant can answer embedded incident RCA and DevOps/KPI questions without leaving Command Center.
+- Added voice input and read-aloud controls to the Command Center assistant.
+- Breached incident quick buttons now answer inside the Command Center assistant.
+
+---
+
 # v12.7.1 — DevOps Visual Hierarchy
 
 DevOps Governance now defaults to a real hierarchy view:
