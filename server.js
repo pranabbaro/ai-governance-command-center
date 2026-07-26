@@ -7,11 +7,18 @@ const port = Number(process.env.PORT || 8080);
 const publicDir = path.join(__dirname, 'public');
 const requestTimeoutMs = Number(process.env.UPSTREAM_TIMEOUT_MS || 25000);
 const resultStorePath = process.env.RESULT_STORE_PATH || (process.env.WEBSITE_SITE_NAME ? '/home/data/ai-governance-latest-result.json' : '/tmp/ai-governance-latest-result.json');
+const governanceStorePath = process.env.GOVERNANCE_STORE_PATH || (process.env.WEBSITE_SITE_NAME ? '/home/data/ai-governance-latest-snapshot.json' : '/tmp/ai-governance-latest-snapshot.json');
 let latestMoveworksResult = null;
+let latestGovernanceResult = null;
 
 function loadLatestResult() {
   try {
     if (fs.existsSync(resultStorePath)) latestMoveworksResult = JSON.parse(fs.readFileSync(resultStorePath, 'utf8'));
+    if (fs.existsSync(governanceStorePath)) latestGovernanceResult = JSON.parse(fs.readFileSync(governanceStorePath, 'utf8'));
+    // Backward compatibility: promote an older stored governance result if it contains SLA data.
+    if (!latestGovernanceResult && latestMoveworksResult && latestMoveworksResult.sla && latestMoveworksResult.callbackType !== 'incident_rca') {
+      latestGovernanceResult = latestMoveworksResult;
+    }
   } catch (err) {
     console.warn('Unable to load previous Moveworks result:', err.message);
   }
@@ -24,6 +31,16 @@ function saveLatestResult(value) {
     fs.writeFileSync(resultStorePath, JSON.stringify(value, null, 2));
   } catch (err) {
     console.warn('Unable to persist Moveworks result:', err.message);
+  }
+}
+
+function saveGovernanceResult(value) {
+  latestGovernanceResult = value;
+  try {
+    fs.mkdirSync(path.dirname(governanceStorePath), { recursive: true });
+    fs.writeFileSync(governanceStorePath, JSON.stringify(value, null, 2));
+  } catch (err) {
+    console.warn('Unable to persist governance snapshot:', err.message);
   }
 }
 
@@ -301,8 +318,9 @@ async function buildDashboard() {
     return normalizeDashboardPayload(await callMoveworks(process.env.MOVEWORKS_DASHBOARD_URL));
   }
 
-  if (latestMoveworksResult) {
-    return normalizeDashboardPayload(latestMoveworksResult);
+  // The dashboard must use the latest full governance snapshot, never an RCA-only callback.
+  if (latestGovernanceResult) {
+    return normalizeDashboardPayload(latestGovernanceResult);
   }
 
   // Optional split endpoints: useful when Moveworks exposes ageing/SLA/DevOps as separate published APIs.
@@ -358,7 +376,7 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 200, {
       status: 'ok',
       service: 'ai-governance-command-center',
-      version: '12.3.0',
+      version: '12.3.2',
       moveworksConfigured: Boolean(process.env.MOVEWORKS_DASHBOARD_URL || process.env.MOVEWORKS_AGEING_URL || process.env.MOVEWORKS_SLA_URL || process.env.MOVEWORKS_TRIGGER_URL),
       aiConfigured: Boolean(process.env.MOVEWORKS_AI_URL || process.env.MOVEWORKS_TRIGGER_URL),
       triggerConfigured: Boolean(process.env.MOVEWORKS_TRIGGER_URL),
@@ -433,7 +451,8 @@ const server = http.createServer(async (req, res) => {
         receivedAt
       };
       saveLatestResult(stored);
-      return sendJson(res, 200, { status: 'ok', message: 'Moveworks governance result received', receivedAt, request_id: stored.request_id });
+      if (!isIncidentRca) saveGovernanceResult(stored);
+      return sendJson(res, 200, { status: 'ok', message: isIncidentRca ? 'Moveworks RCA result received' : 'Moveworks governance result received', receivedAt, request_id: stored.request_id });
     }
 
     if (url.pathname === '/api/moveworks/result' && req.method === 'GET') {
