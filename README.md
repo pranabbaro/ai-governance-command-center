@@ -1,3 +1,11 @@
+# v12.8.1 — Command Center Cleanup
+
+Removed the AI Governance Assistant card from Command Center.
+The front-page AI Operations Agent and the dedicated Ask Governance AI experience remain available.
+Incident SLA Intelligence and DevOps Governance changes are preserved.
+
+---
+
 # v12.8.0 — Incident SLA Intelligence + Unified Command Center AI
 
 Changes:

@@ -167,27 +167,21 @@ function ticketTable(rows) {
 
 function renderCommand() {
   const trend = state.trend.length ? state.trend.map((x,i)=>`<span>${['Mon','Tue','Wed','Thu','Fri'][i]||`W${i+1}`} ${x}%</span>`).join('') : '<span>No trend snapshot yet</span>';
-  const assistantAnswer=state.commandAiAnswer||'';
   return layout(`<section class="metrics four">
     ${metric('Ageing Tickets',state.ageingTotal,'>15 days and stale >5 days','orange')}
     ${metric('SLA Breaches',state.slaBreached,'Live breached SLA records','red')}
     ${metric('DevOps Hygiene',state.devopsHygiene?state.devopsHygiene+'%':'—',state.devopsHygiene?'Live governance score':'DevOps endpoint not yet connected','purple')}
     ${metric('Action Rate',actionRate()+'%',state.morning?`${state.updated+state.closed} of ${state.morning} actioned today`:'Awaiting morning/EOD snapshot','green')}
   </section>
-  <section class="twocol"><div class="card"><div class="cardhead"><div><h2>Today's Governance Effectiveness</h2><p>Morning ageing backlog versus end-of-day outcome</p></div>${badge(actionRate()+'% Actioned','success')}</div>
+  <section class="card"><div class="cardhead"><div><h2>Today's Governance Effectiveness</h2><p>Morning ageing backlog versus end-of-day outcome</p></div>${badge(actionRate()+'% Actioned','success')}</div>
     <div class="effect"><div><span>Morning</span><strong>${state.morning}</strong></div><div><span>Updated</span><strong>${state.updated}</strong></div><div><span>Closed</span><strong>${state.closed}</strong></div><div><span>Pending</span><strong>${state.pending}</strong></div></div>
     <div class="rate"><span>Action Rate</span><strong>${actionRate()}%</strong></div>${progress(actionRate())}
-    <div class="rate secondary"><span>Backlog Reduction</span><strong>${backlogReduction()}%</strong></div><div class="trend">${trend}</div>${button('Send EOD Report','sendEod','',true)}</div>
-    <div class="card command-ai-card"><h2>AI Governance Assistant</h2><p>Same intelligence path as the AI Operations Agent. Ask about SLA, incident RCA, DevOps governance or current KPIs.</p>
-      <div class="mini-ai"><input id="quickAiInput" placeholder="Tell me why SLA is breached for INC5784096">${button(state.commandAiBusy?'Analyzing…':'Ask AI','quickAi','',true)}</div>
-      <div class="command-ai-actions">${button('🎤 Speak','quickAiVoice')}${button('Test Moveworks Connection','testMoveworks')}</div>
-      ${assistantAnswer?`<div class="command-ai-answer"><div class="command-ai-answer-head"><strong>✦ AI Governance Assistant</strong>${button('🔊 Read','readCommandAi')}</div><div>${formatAiText(assistantAnswer)}</div></div>`:''}
-      <div class="brief">⚠ <span><strong>${state.slaCritical}</strong> critical SLA items need attention.</span></div>
-    </div></section>
-    <section class="card"><div class="cardhead"><div><h2>Breached Incidents</h2><p>Unique incident numbers returned by the latest ServiceNow SLA governance run</p></div>${badge(`${state.slaIncidentCount} incidents`,'danger')}</div>
-      ${state.slaIncidentCount?`<div class="chips">${breachedIncidentNumbers().slice(0,20).map(n=>`<button data-action="commandAiPrompt" data-arg="Give me RCA for ${escapeHtml(n)}">${escapeHtml(n)}</button>`).join('')}</div>${state.slaIncidentCount>20?`<div class="muted">Showing first 20 of ${state.slaIncidentCount} unique breached incidents. Open Incident SLA Intelligence for the full returned list.</div>`:''}`:'<div class="empty">No breached incident numbers returned yet. Run SLA_Governance to refresh the live incident list.</div>'}
-    </section>
-    <section class="card ai-card-shell">${aiInsightCard(true)}</section>`);
+    <div class="rate secondary"><span>Backlog Reduction</span><strong>${backlogReduction()}%</strong></div><div class="trend">${trend}</div>${button('Send EOD Report','sendEod','',true)}
+  </section>
+  <section class="card"><div class="cardhead"><div><h2>Breached Incidents</h2><p>Unique incident numbers returned by the latest ServiceNow SLA governance run</p></div>${badge(`${state.slaIncidentCount} incidents`,'danger')}</div>
+      ${state.slaIncidentCount?`<div class="chips">${breachedIncidentNumbers().slice(0,20).map(n=>`<button data-action="aiPrompt" data-arg="Give me RCA for ${escapeHtml(n)}">${escapeHtml(n)}</button>`).join('')}</div>${state.slaIncidentCount>20?`<div class="muted">Showing first 20 of ${state.slaIncidentCount} unique breached incidents. Open Incident SLA Intelligence for the full returned list.</div>`:''}`:'<div class="empty">No breached incident numbers returned yet. Run SLA_Governance to refresh the live incident list.</div>'}
+  </section>
+  <section class="card ai-card-shell">${aiInsightCard(true)}</section>`);
 }
 
 function renderAgeing() {
@@ -1043,7 +1037,7 @@ function startVoice(targetId='agentPrompt') {
   let finalText=''; window.__voiceListening=true; render();
   recognition.onresult=(event)=>{let interim=''; for(let i=event.resultIndex;i<event.results.length;i++){const t=event.results[i][0].transcript;if(event.results[i].isFinal)finalText+=t;else interim+=t;} const text=(finalText||interim).trim(); window.__agentDraft=text; const el=document.getElementById(targetId); if(el) el.value=text;};
   recognition.onerror=(event)=>{window.__voiceListening=false; window.__recognition=null; toast(`Voice input: ${event.error}`); render();};
-  recognition.onend=()=>{window.__voiceListening=false; window.__recognition=null; const text=(finalText||window.__agentDraft||'').trim(); render(); if(text){setTimeout(()=>targetId==='quickAiInput'?askCommandAi(text,true):askAiHome(text,true),180);}};
+  recognition.onend=()=>{window.__voiceListening=false; window.__recognition=null; const text=(finalText||window.__agentDraft||'').trim(); render(); if(text){setTimeout(()=>askAiHome(text,true),180);}};
   try{recognition.start();}catch(err){window.__voiceListening=false; toast(err.message);render();}
 }
 
@@ -1410,10 +1404,7 @@ async function handleAction(action,arg) {
   if(action==='sendEod'){try{await api('/api/reports/eod',{method:'POST',body:JSON.stringify({morning:state.morning,updated:state.updated,closed:state.closed,pending:state.pending,action_rate:actionRate(),backlog_reduction:backlogReduction()})});toast('EOD report triggered through Moveworks');}catch(err){toast(err.message);}return;}
   if(action==='aiTicket') return askAi(`Analyze ticket ${arg}. Explain the risk, likely blockers, SLA impact, and recommended next actions.`);
   if(action==='aiPrompt') return askAi(arg);
-  if(action==='quickAi') return askCommandAi(document.getElementById('quickAiInput')?.value||'',false);
-  if(action==='commandAiPrompt') return askCommandAi(arg,false);
-  if(action==='quickAiVoice') return startVoice('quickAiInput');
-  if(action==='readCommandAi'){if(state.commandAiAnswer)speakText(state.commandAiAnswer);return;}
+  if(action==='quickAi') return askAi(document.getElementById('quickAiInput')?.value||'');
   if(action==='analyzeText') return askAi(document.getElementById('aiInput')?.value||'');
 }
 
