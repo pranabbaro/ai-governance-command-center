@@ -186,16 +186,12 @@ function renderCommand() {
 }
 
 function renderProjectPilot() {
-  return layout(`<section class="card project-embed-shell">
-    <div class="cardhead">
-      <div><h2>Project Management Lifecycle</h2><p>Independent Azure App Service application with its existing Moveworks Agent backend.</p></div>
-      <div class="actions">
-        <button class="btn" data-action="nav" data-arg="command">← Back to Command Center</button>
-        <button class="btn primary" data-action="openProjectPilotExternal">Open in new tab ↗</button>
-      </div>
-    </div>
-    <div class="project-embed-note">The Project Management Lifecycle remains independently hosted. This embedded view does not change its backend, Moveworks workflows, or deployment.</div>
+  return layout(`<section class="project-embed-shell project-embed-clean">
     <iframe class="project-embed-frame" src="https://projectpilot-ai-mvp-bhf0apataxa5cphp.centralindia-01.azurewebsites.net/#dashboard" title="Project Management Lifecycle"></iframe>
+    <div class="project-embed-actions-bottom">
+      <button class="btn" data-action="nav" data-arg="command">← Back to Command Center</button>
+      <button class="btn primary" data-action="openProjectPilotExternal">Open in new tab ↗</button>
+    </div>
   </section>`);
 }
 

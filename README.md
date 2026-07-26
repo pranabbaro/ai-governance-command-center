@@ -1,3 +1,16 @@
+# v12.9.3 — Project Management Lifecycle Embedded View Cleanup
+
+Only the Project Management Lifecycle embedded page was changed:
+
+- Removed the top title/subtitle card.
+- Removed the informational message card.
+- Moved **Back to Command Center** and **Open in new tab** below the embedded application.
+- The embedded Azure App Service URL and Moveworks backend remain unchanged.
+
+No other application functionality or page was changed.
+
+---
+
 # v12.9.2 — Project Management Lifecycle Navigation Move
 
 Only one UI placement change was made:

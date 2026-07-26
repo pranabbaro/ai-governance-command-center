@@ -676,3 +676,12 @@
 .project-embed-shell{padding-bottom:18px}.project-embed-note{font-size:11px;color:#667085;background:#f8fafc;border:1px solid #e6eaf1;border-radius:9px;padding:9px 11px;margin-bottom:12px}
 .project-embed-frame{width:100%;height:76vh;min-height:620px;border:1px solid #dce4f0;border-radius:12px;background:#fff}
 @media(max-width:900px){.project-launch-card{grid-template-columns:1fr}.project-launch-actions{justify-content:flex-start}.project-embed-frame{min-height:520px;height:70vh}}
+
+/* v12.9.3: cleaner Project Management Lifecycle embedded page */
+.project-embed-clean{background:transparent;border:0;box-shadow:none;padding:0}
+.project-embed-clean .project-embed-frame{display:block;margin:0;width:100%;height:82vh;min-height:680px;border:1px solid #dce4f0;border-radius:12px;background:#fff}
+.project-embed-actions-bottom{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-top:12px;padding:0 2px 4px}
+@media(max-width:900px){
+  .project-embed-clean .project-embed-frame{height:75vh;min-height:560px}
+  .project-embed-actions-bottom{justify-content:flex-start}
+}
