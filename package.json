@@ -1,8 +1,8 @@
 {
   "name": "ai-governance-command-center-appservice",
   "private": true,
-  "version": "12.9.1",
-  "description": "AI Operations Agent with Project Management Lifecycle integration card",
+  "version": "12.9.2",
+  "description": "AI Operations Agent with Project Management Lifecycle in left navigation",
   "engines": {
     "node": ">=20"
   },

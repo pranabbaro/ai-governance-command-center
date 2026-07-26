@@ -12,7 +12,8 @@ const state = {
 
 const nav = [
   ['agent','AI Operations Agent','✦'], ['command','Command Center','⌂'], ['sla','Incident SLA Intelligence','✓'],
-  ['devops','DevOps Governance','▣'], ['ai','Ask Governance AI','◈'], ['presentation','Presentation Mode','▶']
+  ['devops','DevOps Governance','▣'], ['ai','Ask Governance AI','◈'], ['presentation','Presentation Mode','▶'],
+  ['projectpilot','Project Management Lifecycle','PM']
 ];
 
 
@@ -181,24 +182,7 @@ function renderCommand() {
   <section class="card"><div class="cardhead"><div><h2>Breached Incidents</h2><p>Unique incident numbers returned by the latest ServiceNow SLA governance run</p></div>${badge(`${state.slaIncidentCount} incidents`,'danger')}</div>
       ${state.slaIncidentCount?`<div class="chips">${breachedIncidentNumbers().slice(0,20).map(n=>`<button data-action="aiPrompt" data-arg="Give me RCA for ${escapeHtml(n)}">${escapeHtml(n)}</button>`).join('')}</div>${state.slaIncidentCount>20?`<div class="muted">Showing first 20 of ${state.slaIncidentCount} unique breached incidents. Open Incident SLA Intelligence for the full returned list.</div>`:''}`:'<div class="empty">No breached incident numbers returned yet. Run SLA_Governance to refresh the live incident list.</div>'}
   </section>
-  <section class="card ai-card-shell">${aiInsightCard(true)}</section>
-  <section class="card project-launch-card">
-    <div class="project-launch-icon">PM</div>
-    <div class="project-launch-copy">
-      <div class="project-launch-kicker">INTEGRATED APPLICATION</div>
-      <h2>Project Management Lifecycle</h2>
-      <p>Project planning, meeting actions, Azure DevOps governance, handover workflows and Moveworks-powered project operations.</p>
-      <div class="project-launch-meta">
-        <span>Azure App Service</span>
-        <span>Moveworks Agent Backend</span>
-        <span>Independent Deployment</span>
-      </div>
-    </div>
-    <div class="project-launch-actions">
-      <button class="btn primary" data-action="openProjectPilot">Open Project Management Lifecycle</button>
-      <button class="btn" data-action="openProjectPilotExternal">Open in new tab ↗</button>
-    </div>
-  </section>`);
+  <section class="card ai-card-shell">${aiInsightCard(true)}</section>`);
 }
 
 function renderProjectPilot() {

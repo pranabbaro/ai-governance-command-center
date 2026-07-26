@@ -1,3 +1,15 @@
+# v12.9.2 — Project Management Lifecycle Navigation Move
+
+Only one UI placement change was made:
+
+- Removed the Project Management Lifecycle card from the Command Center content area.
+- Added Project Management Lifecycle to the left navigation directly below Presentation Mode.
+- The existing embedded page, App Service URL, and Moveworks backend integration remain unchanged.
+
+No Incident SLA Intelligence, DevOps Governance, RCA, robot, Command Center, or Presentation Mode functionality was changed.
+
+---
+
 # v12.9.1 — Project Management Lifecycle Rename
 
 Only the visible integrated application name was changed from **Project Command Center** to **Project Management Lifecycle**.
