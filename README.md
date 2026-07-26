@@ -1,3 +1,45 @@
+# v12.5.0 — RCA embedded in breached incidents
+
+The dashboard now supports compact RCA data returned inside each `breached_incidents` record.
+
+Supported fields per incident:
+
+```json
+{
+  "incident_number": "INC5784096",
+  "rca_summary": "Delayed ownership after reassignment.",
+  "likely_root_cause": "Incorrect resolver-group routing.",
+  "contributing_factors": ["Multiple reassignments", "No update during critical SLA window"],
+  "corrective_action": "Assign to the correct resolver group and escalate.",
+  "preventive_action": "Escalate automatically at 75% and 90% SLA consumption.",
+  "confidence": "Medium",
+  "evidence": ["Assignment changed twice before breach"]
+}
+```
+
+The SLA Intelligence page shows **View RCA** for incidents that contain RCA data. The robot can also answer
+`Give me RCA for INC...` from the already-loaded dashboard snapshot, without starting a second RCA workflow.
+
+The existing governance callback remains the system-of-record feed.
+
+---
+
+# v12.4.0 — Direct RCA Response
+
+Incident-specific RCA no longer uses `/api/moveworks/result`, callback correlation, or frontend polling.
+
+Configure Azure App Service:
+
+```text
+MOVEWORKS_RCA_URL=<synchronous Moveworks endpoint that executes SLA_Breach_AI_Analysis>
+MOVEWORKS_RCA_TIMEOUT_MS=120000
+```
+
+The endpoint must accept `incident_number` and return the final analysis in a field such as `ai_analysis`.
+Governance callbacks remain unchanged and continue to populate the management dashboard.
+
+---
+
 # AI Operations Agent V11
 
 Pixel-matched enterprise landing page based on the approved visual.

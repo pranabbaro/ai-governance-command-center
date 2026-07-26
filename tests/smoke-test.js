@@ -12,7 +12,10 @@ for (const text of ['AI Operations Agent','Command Center','Ageing Tickets','SLA
 for (const endpoint of ['/api/dashboard','/api/ai/query','/api/moveworks/result','/api/reports/eod']) {
   if (!fs.readFileSync(path.join(root,'server.js'),'utf8').includes(endpoint)) throw new Error(`Missing API route: ${endpoint}`);
 }
-if (!js.includes('result.requestId||result.request_id')) throw new Error('Frontend request_id fallback missing');
-if (!html.includes('app.js?v=12.3.6')) throw new Error('Frontend cache-bust version missing');
+const server=fs.readFileSync(path.join(root,'server.js'),'utf8');
+if (!server.includes('MOVEWORKS_RCA_URL')) throw new Error('Direct RCA endpoint configuration missing');
+if (!server.includes("mode: 'synchronous-rca'")) throw new Error('Synchronous RCA response mode missing');
+if (!server.includes('p.ai_analysis')) throw new Error('RCA ai_analysis extraction missing');
+if (!html.includes('app.js?v=12.5.0')) throw new Error('Frontend cache-bust version missing');
 new Function(js);
 console.log('Static smoke test passed.');

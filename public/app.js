@@ -26,6 +26,56 @@ function breachedIncidentNumbers() {
   const values=(state.slaBreaches||[]).map(x=>String(x.incident_number||x.id||x.number||'').trim()).filter(Boolean);
   return [...new Set(values)];
 }
+
+function incidentNumberOf(x={}) {
+  return String(x.incident_number||x.id||x.number||'').trim();
+}
+function findSlaIncident(number='') {
+  const key=String(number||'').trim().toUpperCase();
+  return (state.slaBreaches||[]).find(x=>incidentNumberOf(x).toUpperCase()===key)||null;
+}
+function hasIncidentRca(x={}) {
+  return Boolean(x.hasRca||x.rca_summary||x.likely_root_cause||x.corrective_action||x.preventive_action);
+}
+function rcaTextForIncident(x={}) {
+  if(!x) return '';
+  const n=incidentNumberOf(x)||'Incident';
+  const factors=Array.isArray(x.contributing_factors)?x.contributing_factors.filter(Boolean):[];
+  const evidence=Array.isArray(x.evidence)?x.evidence.filter(Boolean):[];
+  const parts=[`**${n} — SLA Breach RCA**`];
+  if(x.rca_summary) parts.push(`**RCA Summary**\n${x.rca_summary}`);
+  if(x.likely_root_cause) parts.push(`**Likely Root Cause**\n${x.likely_root_cause}`);
+  if(factors.length) parts.push(`**Contributing Factors**\n${factors.map(v=>`• ${v}`).join('\n')}`);
+  if(evidence.length) parts.push(`**Evidence**\n${evidence.map(v=>`• ${v}`).join('\n')}`);
+  if(x.corrective_action) parts.push(`**Corrective Action**\n${x.corrective_action}`);
+  if(x.preventive_action) parts.push(`**Preventive Action**\n${x.preventive_action}`);
+  if(x.confidence) parts.push(`**Confidence**\n${x.confidence}`);
+  return parts.join('\n\n');
+}
+function openRcaModal(number='') {
+  const x=findSlaIncident(number);
+  if(!x) return toast(`Incident ${number} is not in the latest governance snapshot.`);
+  const existing=document.getElementById('rcaModal'); if(existing) existing.remove();
+  const has=hasIncidentRca(x);
+  const factors=Array.isArray(x.contributing_factors)?x.contributing_factors.filter(Boolean):[];
+  const evidence=Array.isArray(x.evidence)?x.evidence.filter(Boolean):[];
+  const overlay=document.createElement('div');
+  overlay.className='modalback'; overlay.id='rcaModal';
+  overlay.innerHTML=`<div class="modal rca-modal">
+    <div class="rca-modal-head"><div><span class="ai-kicker">SLA BREACH RCA</span><h2>${escapeHtml(incidentNumberOf(x))}</h2><p>${escapeHtml(x.summary||x.description||'Breached SLA record')}</p></div>${badge(x.confidence||'RCA','info')}</div>
+    <div class="rca-meta-row"><span>Priority <strong>${escapeHtml(x.priority||'—')}</strong></span><span>State <strong>${escapeHtml(x.state||x.status||'—')}</strong></span><span>Team <strong>${escapeHtml(x.team||'—')}</strong></span></div>
+    ${has?`
+      ${x.rca_summary?`<section><h3>RCA Summary</h3><p>${escapeHtml(x.rca_summary)}</p></section>`:''}
+      ${x.likely_root_cause?`<section><h3>Likely Root Cause</h3><p>${escapeHtml(x.likely_root_cause)}</p></section>`:''}
+      ${factors.length?`<section><h3>Contributing Factors</h3><ul>${factors.map(v=>`<li>${escapeHtml(v)}</li>`).join('')}</ul></section>`:''}
+      ${evidence.length?`<section><h3>Evidence</h3><ul>${evidence.map(v=>`<li>${escapeHtml(v)}</li>`).join('')}</ul></section>`:''}
+      ${x.corrective_action?`<section><h3>Corrective Action</h3><p>${escapeHtml(x.corrective_action)}</p></section>`:''}
+      ${x.preventive_action?`<section><h3>Preventive Action</h3><p>${escapeHtml(x.preventive_action)}</p></section>`:''}
+    `:`<div class="rca-unavailable"><strong>RCA not included in the latest governance callback.</strong><span>Update SLA_Governance so each breached_incidents record contains compact RCA fields.</span></div>`}
+    <div class="modalactions"><button class="btn" data-action="closeRcaModal">Close</button>${has?`<button class="btn primary" data-action="readRca" data-arg="${escapeHtml(incidentNumberOf(x))}">🔊 Read RCA</button>`:''}</div>
+  </div>`;
+  document.body.appendChild(overlay);
+}
 function toast(message) { const el=document.getElementById('toast'); el.textContent=message; el.hidden=false; clearTimeout(window.__toastTimer); window.__toastTimer=setTimeout(()=>{el.hidden=true;},3000); }
 function metric(label, value, sub, tone='blue') { return `<div class="metric tone-${tone}"><div><div class="metric-label">${escapeHtml(label)}</div><div class="metric-value">${escapeHtml(value)}</div><div class="metric-sub">${escapeHtml(sub)}</div></div></div>`; }
 function formatAiText(value='') {
@@ -106,7 +156,25 @@ function renderAgeing() {
 }
 
 function renderSla() {
-  const cards = state.slaBreaches.length ? state.slaBreaches.map(x=>`<div class="slacard"><div class="cardhead"><strong>${escapeHtml(x.incident_number||x.id||x.number||'SLA')}</strong>${badge(x.team||x.assignment_group||'ServiceNow')}</div><p>${escapeHtml(x.incident_name||x.summary||x.description||'Breached SLA record')}</p><div class="slameta"><span>Breach <strong>${escapeHtml(x.breach||x.percentage||'')}</strong></span><span>AI RCA <strong>${escapeHtml(x.cause||'Available via Ask AI')}</strong></span><span>Confidence <strong>${escapeHtml(x.confidence||'')}</strong></span></div>${button('Investigate with AI','aiPrompt',`Analyze SLA breach ${x.id||x.number||''}`,true)}</div>`).join('') : '<div class="empty">No detailed breach records returned by the dashboard endpoint.</div>';
+  const cards = state.slaBreaches.length ? state.slaBreaches.map(x=>{
+    const number=incidentNumberOf(x);
+    const hasRca=hasIncidentRca(x);
+    return `<div class="slacard">
+      <div class="cardhead"><strong>${escapeHtml(number||'SLA')}</strong>${badge(x.team||x.assignment_group||'ServiceNow')}</div>
+      <p>${escapeHtml(x.incident_name||x.summary||x.description||'Breached SLA record')}</p>
+      <div class="slameta">
+        <span>Priority <strong>${escapeHtml(x.priority||'—')}</strong></span>
+        <span>Status <strong>${escapeHtml(x.state||x.status||'Breached')}</strong></span>
+        <span>AI RCA <strong>${hasRca?'Ready':'Not included yet'}</strong></span>
+        <span>Confidence <strong>${escapeHtml(x.confidence||'—')}</strong></span>
+      </div>
+      ${hasRca&&x.rca_summary?`<div class="rca-preview"><strong>Likely RCA</strong><p>${escapeHtml(x.rca_summary)}</p></div>`:''}
+      <div class="actions">
+        ${button(hasRca?'View RCA':'RCA details','viewRca',number,true)}
+        ${button('Ask AI','aiPrompt',`Analyze SLA breach ${number}`)}
+      </div>
+    </div>`;
+  }).join('') : '<div class="empty">No detailed breach records returned by the dashboard endpoint.</div>';
   return layout(`<section class="metrics four">${metric('SLA At Risk',state.slaAtRisk,'≥75% consumed','orange')}${metric('Critical SLA',state.slaCritical,'≥90% consumed','red')}${metric('SLA Breached',state.slaBreached,'Requires investigation','red')}${metric('Total SLA Attention',state.slaTotalAttention,'At risk + breached','purple')}</section><section class="card ai-card-shell">${aiInsightCard(false)}</section><section class="card"><h2>SLA Breach Intelligence</h2><div class="slagrid">${cards}</div></section>`);
 }
 
@@ -145,6 +213,11 @@ function localOperationalResult(prompt) {
   const wantsShow=/\b(show|list|display|give me|find|get)\b/.test(q);
   const mentionsBreach=/\b(breach|breached|breaches)\b/.test(q);
   const mentionsSla=/\bsla\b/.test(q);
+  const incidentMatch=clean.match(/\bINC\d+\b/i);
+  if(incidentMatch && /\b(rca|root cause|why.*breach|breach reason|analy[sz]e)\b/i.test(clean)) {
+    const row=findSlaIncident(incidentMatch[0]);
+    if(row && hasIncidentRca(row)) return {kind:'incident-rca', rows:[row], answer:rcaTextForIncident(row)};
+  }
   if(wantsShow && mentionsBreach && (mentionsSla || /\b(incident|incidents|ticket|tickets)\b/.test(q))) {
     const rows=agentTicketRows('breached');
     const preview=rows.slice(0,5).map(x=>x.id).filter(Boolean).join(', ');
@@ -1001,6 +1074,9 @@ async function handleAction(action,arg) {
   if(action==='closeHomeResponse'){stopSpeech();window.__homeAiAnswer='';render();return;}
   if(action==='copyHomeResponse'){navigator.clipboard?.writeText(window.__homeAiAnswer||'');toast('Response copied');return;}
   if(action==='viewFullAnalysis'){window.__aiAnswer=window.__homeAiAnswer||window.__aiAnswer||'';state.page='results';render();return;}
+  if(action==='viewRca') return openRcaModal(arg);
+  if(action==='closeRcaModal'){document.getElementById('rcaModal')?.remove();return;}
+  if(action==='readRca'){const row=findSlaIncident(arg);const text=rcaTextForIncident(row);if(text)speakText(text);return;}
   if(action==='nav'){state.page=arg;render();return;} if(action==='assign')return openAssign(arg); if(action==='closeModal'){document.getElementById('assignModal')?.remove();return;}
   if(action==='confirmAssign') { const input=document.getElementById('assigneeSelect'); if(!state.selectedTicket||!input?.value.trim()) return toast('Enter an assignee.'); try { await api(`/api/tickets/${encodeURIComponent(state.selectedTicket.id)}/assign`,{method:'POST',body:JSON.stringify({assignee:input.value.trim()})}); toast(`${state.selectedTicket.id} assignment requested through Moveworks`); document.getElementById('assignModal')?.remove(); await refreshDashboard(); } catch(err){toast(err.message);} return; }
   if(action==='notifyTicket'){try{await api(`/api/tickets/${encodeURIComponent(arg)}/notify`,{method:'POST',body:'{}'});toast(`Moveworks notification triggered for ${arg}`);}catch(err){toast(err.message);}return;}
