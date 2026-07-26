@@ -1,8 +1,8 @@
 {
   "name": "ai-governance-command-center-appservice",
   "private": true,
-  "version": "13.0.1",
-  "description": "AI Operations Agent V12.2 baseline plus homepage lip-sync overlay only; no robot layout changes",
+  "version": "12.2.0",
+  "description": "AI Operations Agent with original PDF slide visuals plus PPTX narration",
   "engines": {
     "node": ">=20"
   },
