@@ -6,7 +6,7 @@ const state = {
   ageingTotal: 0, incidentCount: 0, ritmCount: 0, taskCount: 0,
   slaAtRisk: 0, slaCritical: 0, slaBreached: 0, slaTotalAttention: 0, slaCompliance: null,
   slaStatusFilter: 'all', slaGroupFilter: 'all', slaSearch: '',
-  devopsHygiene: 0, devopsNonCompliant: 0, devopsLargestGap: '', devopsTypeFilter:'all', devopsComplianceFilter:'all', devopsSearch:'',
+  devopsHygiene: 0, devopsNonCompliant: 0, devopsLargestGap: '', devopsTypeFilter:'all', devopsComplianceFilter:'all', devopsSearch:'', devopsView:'hierarchy',
   tickets: [], slaBreaches: [], slaIncidentCount: 0, devopsItems: [], devopsMockMode:false, trend: [], aiBriefing: null
 };
 
@@ -246,6 +246,45 @@ function renderSla() {
     </section>`);
 }
 
+
+function devopsHierarchyHtml(items=[]) {
+  const byParent=new Map();
+  items.forEach(item=>{
+    const parent=String(item.parent||'').trim();
+    if(!byParent.has(parent)) byParent.set(parent,[]);
+    byParent.get(parent).push(item);
+  });
+  const order={'Epic':0,'Feature':1,'User Story':2,'Task':3};
+  for(const arr of byParent.values()) arr.sort((a,b)=>(order[a.type]??9)-(order[b.type]??9)||String(a.id).localeCompare(String(b.id)));
+
+  const renderNode=(item,depth=0)=>{
+    const id=item.id||item.number;
+    const children=byParent.get(String(id))||[];
+    const missing=(item.missing||[]);
+    const compliant=missing.length===0;
+    return `<div class="devops-tree-node depth-${Math.min(depth,3)}">
+      <div class="devops-tree-row">
+        <div class="devops-tree-main">
+          <span class="tree-type ${String(item.type||'').toLowerCase().replace(/\s+/g,'-')}">${escapeHtml(item.type||'Work Item')}</span>
+          <div><strong>${escapeHtml(id)}</strong><div class="tree-title">${escapeHtml(item.title||'')}</div></div>
+        </div>
+        <div class="devops-tree-meta">
+          <span>Owner <strong>${escapeHtml(item.owner||'Unassigned')}</strong></span>
+          <span>Sprint <strong>${escapeHtml(item.sprint||'Not set')}</strong></span>
+          <span>Score <strong>${Number(item.score)||0}%</strong></span>
+        </div>
+        <div class="devops-tree-status">${compliant?badge('Compliant','success'):missing.map(m=>badge(m,'danger')).join(' ')}</div>
+        <div class="actions">${button('Reassign','reassignDevops',id)}${button('Ask AI','aiPrompt',`Analyze DevOps work item ${id}`,true)}</div>
+      </div>
+      ${children.length?`<div class="devops-tree-children">${children.map(child=>renderNode(child,depth+1)).join('')}</div>`:''}
+    </div>`;
+  };
+
+  const roots=(byParent.get('')||[]).filter(x=>x.type==='Epic');
+  const orphanRoots=(byParent.get('')||[]).filter(x=>x.type!=='Epic');
+  return [...roots,...orphanRoots].map(x=>renderNode(x,0)).join('');
+}
+
 function renderDevops() {
   const all=state.devopsItems||[];
   const q=String(state.devopsSearch||'').trim().toLowerCase();
@@ -256,7 +295,9 @@ function renderDevops() {
     return typeOk&&complianceOk&&(!q||hay.includes(q));
   });
   const counts=devopsTypeCounts(all);
-  const rows=filtered.length?`<div class="tablewrap"><table><thead><tr><th>Work Item</th><th>Type</th><th>Owner</th><th>Sprint</th><th>Missing</th><th>Score</th><th>Action</th></tr></thead><tbody>${filtered.map(x=>`<tr>
+  const filterActive=state.devopsTypeFilter!=='all'||state.devopsComplianceFilter!=='all'||Boolean(q);
+
+  const listRows=filtered.length?`<div class="tablewrap"><table><thead><tr><th>Work Item</th><th>Type</th><th>Owner</th><th>Sprint</th><th>Missing</th><th>Score</th><th>Action</th></tr></thead><tbody>${filtered.map(x=>`<tr>
     <td><strong>${escapeHtml(x.id||x.number)}</strong><div class="muted">${escapeHtml(x.title||'')}</div><div class="muted">Parent: ${escapeHtml(x.parent||'—')}</div></td>
     <td>${escapeHtml(x.type||'')}</td>
     <td>${escapeHtml(x.owner||'Unassigned')}</td>
@@ -265,22 +306,36 @@ function renderDevops() {
     <td><strong>${Number(x.score)||0}%</strong>${progress(x.score)}</td>
     <td><div class="actions">${button('Reassign','reassignDevops',x.id||x.number)}${button('Ask AI','aiPrompt',`Analyze DevOps work item ${x.id||x.number}`,true)}</div></td>
   </tr>`).join('')}</tbody></table></div>`:'<div class="empty">No DevOps work items match the selected filters.</div>';
+
+  const hierarchy=all.length?`<div class="devops-hierarchy">
+    <div class="hierarchy-legend"><span>EPIC</span><b>→</b><span>FEATURE</span><b>→</b><span>USER STORY</span><b>→</b><span>TASK</span></div>
+    ${devopsHierarchyHtml(all)}
+  </div>`:'<div class="empty">No DevOps hierarchy data available.</div>';
+
   const sourceNote=state.devopsMockMode?'<span class="demo-pill">MVP MOCK DATA</span>':'<span class="live-pill">LIVE DATA</span>';
   return layout(`<section class="metrics four">
     ${metric('Overall Hygiene',state.devopsHygiene+'%','DevOps metadata quality','green')}
     ${metric('Epics',counts.Epic,'Portfolio initiatives','purple')}
-    ${metric('User Stories',counts['User Story'],'Delivery requirements','orange')}
-    ${metric('Tasks',counts.Task,'Execution items','red')}
+    ${metric('Features',counts.Feature,'Capabilities','blue')}
+    ${metric('User Stories / Tasks',counts['User Story']+' / '+counts.Task,'Delivery items','orange')}
   </section>
   <section class="card">
     <div class="cardhead"><div><h2>Azure DevOps Governance ${sourceNote}</h2><p>${state.devopsNonCompliant} non-compliant work items · Largest gap: ${escapeHtml(state.devopsLargestGap||'—')}</p></div></div>
-    <div class="devops-filterbar">
-      <label><span>Work item type</span><select id="devopsTypeFilter" class="search"><option value="all">All types</option>${['Epic','Feature','User Story','Task'].map(v=>`<option value="${v}" ${state.devopsTypeFilter===v?'selected':''}>${v}</option>`).join('')}</select></label>
-      <label><span>Compliance</span><select id="devopsComplianceFilter" class="search"><option value="all">All</option><option value="compliant" ${state.devopsComplianceFilter==='compliant'?'selected':''}>Compliant</option><option value="noncompliant" ${state.devopsComplianceFilter==='noncompliant'?'selected':''}>Non-compliant</option></select></label>
-      <label><span>Search</span><input id="devopsSearch" class="search" placeholder="EPIC, story, owner, sprint..." value="${escapeHtml(state.devopsSearch)}"></label>
-      <button class="btn" data-action="clearDevopsFilters">Clear filters</button>
+
+    <div class="devops-view-switch">
+      <button class="btn ${state.devopsView!=='list'?'primary':''}" data-action="devopsHierarchyView">Hierarchy</button>
+      <button class="btn ${state.devopsView==='list'?'primary':''}" data-action="devopsListView">Governance List</button>
     </div>
-    ${rows}
+
+    ${state.devopsView==='list'?`
+      <div class="devops-filterbar">
+        <label><span>Work item type</span><select id="devopsTypeFilter" class="search"><option value="all">All types</option>${['Epic','Feature','User Story','Task'].map(v=>`<option value="${v}" ${state.devopsTypeFilter===v?'selected':''}>${v}</option>`).join('')}</select></label>
+        <label><span>Compliance</span><select id="devopsComplianceFilter" class="search"><option value="all">All</option><option value="compliant" ${state.devopsComplianceFilter==='compliant'?'selected':''}>Compliant</option><option value="noncompliant" ${state.devopsComplianceFilter==='noncompliant'?'selected':''}>Non-compliant</option></select></label>
+        <label><span>Search</span><input id="devopsSearch" class="search" placeholder="EPIC, story, owner, sprint..." value="${escapeHtml(state.devopsSearch)}"></label>
+        <button class="btn" data-action="clearDevopsFilters">Clear filters</button>
+      </div>
+      ${listRows}
+    `:hierarchy}
   </section>`);
 }
 
@@ -1261,6 +1316,8 @@ async function handleAction(action,arg) {
   if(action==='readRca'){const row=findSlaIncident(arg);const text=rcaTextForIncident(row);if(text)speakText(text);return;}
   if(action==='clearSlaFilters'){state.slaStatusFilter='all';state.slaGroupFilter='all';state.slaSearch='';render();return;}
   if(action==='clearDevopsFilters'){state.devopsTypeFilter='all';state.devopsComplianceFilter='all';state.devopsSearch='';render();return;}
+  if(action==='devopsHierarchyView'){state.devopsView='hierarchy';render();return;}
+  if(action==='devopsListView'){state.devopsView='list';render();return;}
   if(action==='reassignDevops') return openDevopsReassign(arg);
   if(action==='closeDevopsModal'){document.getElementById('devopsAssignModal')?.remove();return;}
   if(action==='confirmDevopsReassign'){

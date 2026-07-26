@@ -1,8 +1,8 @@
 {
   "name": "ai-governance-command-center-appservice",
   "private": true,
-  "version": "12.7.0",
-  "description": "AI Operations Agent with DevOps mock MVP governance and demo reassignment",
+  "version": "12.7.1",
+  "description": "AI Operations Agent with visual DevOps work item hierarchy",
   "engines": {
     "node": ">=20"
   },

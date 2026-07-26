@@ -1,3 +1,13 @@
+# v12.7.1 — DevOps Visual Hierarchy
+
+DevOps Governance now defaults to a real hierarchy view:
+EPIC → Feature → User Story → Task
+
+A separate Governance List view preserves the filtering/compliance table.
+Reassignment and Ask AI remain available on each hierarchy node.
+
+---
+
 # v12.7.0 — DevOps Mock MVP + Reassignment
 
 Adds a realistic mock Azure DevOps hierarchy for demo use when no live DevOps items are returned:

@@ -648,3 +648,15 @@
 .devops-filterbar label{display:flex;flex-direction:column;gap:6px}.devops-filterbar label>span{font-size:11px;font-weight:700;color:#52627a}.devops-filterbar .search{width:100%;margin:0}
 .demo-pill,.live-pill{display:inline-block;margin-left:8px;padding:3px 8px;border-radius:999px;font-size:10px;font-weight:800;vertical-align:middle}.demo-pill{background:#fff3cd;color:#8a5a00;border:1px solid #ffe69c}.live-pill{background:#d1e7dd;color:#0f5132;border:1px solid #badbcc}
 @media(max-width:900px){.devops-filterbar{grid-template-columns:1fr}.devops-filterbar .btn{width:100%}}
+
+.devops-view-switch{display:flex;gap:8px;margin:14px 0 16px}
+.devops-hierarchy{display:flex;flex-direction:column;gap:10px}
+.hierarchy-legend{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 12px;border:1px solid #e6eaf1;border-radius:10px;background:#f8fafc;font-size:11px;font-weight:800;color:#52627a}
+.devops-tree-node{position:relative}
+.devops-tree-children{margin-left:34px;padding-left:18px;border-left:2px solid #e2e8f0;display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.devops-tree-row{display:grid;grid-template-columns:minmax(320px,1.3fr) minmax(280px,1fr) minmax(180px,.8fr) auto;gap:12px;align-items:center;padding:12px;border:1px solid #e6eaf1;border-radius:12px;background:#fff;box-shadow:0 1px 2px rgba(16,24,40,.03)}
+.devops-tree-main{display:flex;align-items:flex-start;gap:10px}.tree-title{font-size:12px;color:#667085;margin-top:3px}.tree-type{min-width:82px;text-align:center;padding:5px 8px;border-radius:8px;font-size:10px;font-weight:800;background:#eef2ff;color:#3b5bcc}
+.tree-type.epic{background:#f3e8ff;color:#7e22ce}.tree-type.feature{background:#e0f2fe;color:#0369a1}.tree-type.user-story{background:#ecfdf3;color:#027a48}.tree-type.task{background:#fff7ed;color:#c2410c}
+.devops-tree-meta{display:flex;gap:12px;flex-wrap:wrap}.devops-tree-meta span{font-size:10px;color:#667085}.devops-tree-meta strong{display:block;color:#344054;margin-top:2px}
+.devops-tree-status{display:flex;gap:4px;flex-wrap:wrap}.depth-1>.devops-tree-row{border-left:4px solid #bae6fd}.depth-2>.devops-tree-row{border-left:4px solid #bbf7d0}.depth-3>.devops-tree-row{border-left:4px solid #fed7aa}
+@media(max-width:1100px){.devops-tree-row{grid-template-columns:1fr}.devops-tree-children{margin-left:16px;padding-left:10px}}
