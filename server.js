@@ -7,9 +7,12 @@ const port = Number(process.env.PORT || 8080);
 const publicDir = path.join(__dirname, 'public');
 const requestTimeoutMs = Number(process.env.UPSTREAM_TIMEOUT_MS || 25000);
 const resultStorePath = process.env.RESULT_STORE_PATH || (process.env.WEBSITE_SITE_NAME ? '/home/data/ai-governance-latest-result.json' : '/tmp/ai-governance-latest-result.json');
+const rcaStorePath = process.env.RCA_STORE_PATH || (process.env.WEBSITE_SITE_NAME ? '/home/data/ai-governance-latest-rca.json' : '/tmp/ai-governance-latest-rca.json');
+const pendingRcaStorePath = process.env.PENDING_RCA_STORE_PATH || (process.env.WEBSITE_SITE_NAME ? '/home/data/ai-governance-pending-rca.json' : '/tmp/ai-governance-pending-rca.json');
 let latestMoveworksResult = null;
 let latestRcaResult = null;
 const resultsByRequest = new Map();
+const pendingRcaByIncident = new Map();
 
 function loadLatestResult() {
   try {
@@ -17,6 +20,64 @@ function loadLatestResult() {
   } catch (err) {
     console.warn('Unable to load previous Moveworks result:', err.message);
   }
+}
+
+function loadRcaState() {
+  try {
+    if (fs.existsSync(rcaStorePath)) {
+      latestRcaResult = JSON.parse(fs.readFileSync(rcaStorePath, 'utf8'));
+      const reqId = latestRcaResult?.request_id || latestRcaResult?.requestId;
+      if (reqId) resultsByRequest.set(String(reqId), latestRcaResult);
+    }
+  } catch (err) {
+    console.warn('Unable to load previous RCA result:', err.message);
+  }
+  try {
+    if (fs.existsSync(pendingRcaStorePath)) {
+      const pending = JSON.parse(fs.readFileSync(pendingRcaStorePath, 'utf8'));
+      if (pending && typeof pending === 'object') {
+        for (const [incident, value] of Object.entries(pending)) {
+          if (incident && value?.request_id) pendingRcaByIncident.set(String(incident).toUpperCase(), value);
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('Unable to load pending RCA requests:', err.message);
+  }
+}
+
+function persistPendingRca() {
+  try {
+    fs.mkdirSync(path.dirname(pendingRcaStorePath), { recursive: true });
+    const obj = Object.fromEntries(pendingRcaByIncident.entries());
+    fs.writeFileSync(pendingRcaStorePath, JSON.stringify(obj, null, 2));
+  } catch (err) {
+    console.warn('Unable to persist pending RCA requests:', err.message);
+  }
+}
+
+function registerPendingRca(incidentNumber, reqId, startedAt) {
+  if (!incidentNumber || !reqId) return;
+  pendingRcaByIncident.set(String(incidentNumber).toUpperCase(), {
+    incident_number: String(incidentNumber).toUpperCase(),
+    request_id: String(reqId),
+    startedAt: startedAt || new Date().toISOString()
+  });
+  persistPendingRca();
+}
+
+function resolvePendingRequestId(incidentNumber) {
+  if (!incidentNumber) return null;
+  return pendingRcaByIncident.get(String(incidentNumber).toUpperCase())?.request_id || null;
+}
+
+function clearPendingRca(incidentNumber, reqId) {
+  const incident = incidentNumber ? String(incidentNumber).toUpperCase() : '';
+  if (incident) {
+    const pending = pendingRcaByIncident.get(incident);
+    if (!reqId || !pending || String(pending.request_id) === String(reqId)) pendingRcaByIncident.delete(incident);
+  }
+  persistPendingRca();
 }
 
 function saveLatestResult(value) {
@@ -48,6 +109,12 @@ function saveRcaResult(value) {
       if (oldest) resultsByRequest.delete(oldest);
     }
   }
+  try {
+    fs.mkdirSync(path.dirname(rcaStorePath), { recursive: true });
+    fs.writeFileSync(rcaStorePath, JSON.stringify(value, null, 2));
+  } catch (err) {
+    console.warn('Unable to persist RCA result:', err.message);
+  }
 }
 
 function extractIncidentNumber(prompt) {
@@ -63,6 +130,7 @@ function isRcaPrompt(prompt) {
 }
 
 loadLatestResult();
+loadRcaState();
 
 const mime = {
   '.html': 'text/html; charset=utf-8',
@@ -383,7 +451,7 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 200, {
       status: 'ok',
       service: 'ai-governance-command-center',
-      version: '12.3.5',
+      version: '12.3.6',
       moveworksConfigured: Boolean(process.env.MOVEWORKS_DASHBOARD_URL || process.env.MOVEWORKS_AGEING_URL || process.env.MOVEWORKS_SLA_URL || process.env.MOVEWORKS_TRIGGER_URL),
       aiConfigured: Boolean(process.env.MOVEWORKS_AI_URL || process.env.MOVEWORKS_TRIGGER_URL),
       triggerConfigured: Boolean(process.env.MOVEWORKS_TRIGGER_URL),
@@ -418,7 +486,11 @@ const server = http.createServer(async (req, res) => {
       const body = await readJsonBody(req);
       const receivedAt = new Date().toISOString();
       const normalizedInput = normalizeCallbackPayload({ ...body, receivedAt });
-      const reqId = body.request_id || body.requestId || null;
+      const incidentFromCallback = body.incident_number || body.incidentNumber || normalizedInput.incident_number || normalizedInput.incidentNumber || null;
+      // Prefer the request_id supplied by Moveworks. If the listener/compound action
+      // dropped it, recover it from the pending incident request registered when
+      // /api/ai/query started the RCA. This makes the flow resilient to mapping gaps.
+      const reqId = body.request_id || body.requestId || normalizedInput.request_id || normalizedInput.requestId || resolvePendingRequestId(incidentFromCallback) || null;
 
       // Incident RCA callbacks are request-scoped. Keep them separate from the
       // dashboard governance snapshot so an RCA response never resets KPI counts.
@@ -426,13 +498,14 @@ const server = http.createServer(async (req, res) => {
         const rcaStored = {
           ...normalizedInput,
           request_id: reqId,
-          incident_number: body.incident_number || body.incidentNumber || normalizedInput.incident_number || null,
+          incident_number: incidentFromCallback,
           ai_analysis: body.ai_analysis || normalizedInput.ai_analysis || normalizedInput.analysis || null,
           type: body.type || normalizedInput.type || 'incident_rca',
           prompt: body.prompt || null,
           receivedAt
         };
         saveRcaResult(rcaStored);
+        clearPendingRca(rcaStored.incident_number, rcaStored.request_id);
         return sendJson(res, 200, {
           status: 'ok',
           message: 'Moveworks RCA result received',
@@ -462,8 +535,22 @@ const server = http.createServer(async (req, res) => {
       // A request_id means the browser is waiting for one specific async AI/RCA
       // response. Never satisfy it with an unrelated governance snapshot.
       if (requestedId) {
-        const exact = resultsByRequest.get(requestedId)
+        let exact = resultsByRequest.get(requestedId)
           || (latestRcaResult && String(latestRcaResult.request_id || '') === requestedId ? latestRcaResult : null);
+        if (!exact) {
+          try {
+            if (fs.existsSync(rcaStorePath)) {
+              const diskRca = JSON.parse(fs.readFileSync(rcaStorePath, 'utf8'));
+              if (String(diskRca?.request_id || diskRca?.requestId || '') === requestedId) {
+                exact = diskRca;
+                latestRcaResult = diskRca;
+                resultsByRequest.set(requestedId, diskRca);
+              }
+            }
+          } catch (err) {
+            console.warn('Unable to read persisted RCA result:', err.message);
+          }
+        }
         if (!exact) return sendJson(res, 200, { status: 'waiting', message: 'Waiting for matching Moveworks RCA result', request_id: requestedId });
         if (since) {
           const resultTime = Date.parse(exact.receivedAt || exact.generatedAt || 0);
@@ -484,6 +571,24 @@ const server = http.createServer(async (req, res) => {
         }
       }
       return sendJson(res, 200, { status: 'ready', result: latestMoveworksResult });
+    }
+
+    if (url.pathname === '/api/rca/debug' && req.method === 'GET') {
+      const requestedId = url.searchParams.get('request_id');
+      const incident = String(url.searchParams.get('incident_number') || '').toUpperCase();
+      const byRequest = requestedId ? resultsByRequest.get(requestedId) : null;
+      const pending = incident ? pendingRcaByIncident.get(incident) : null;
+      return sendJson(res, 200, {
+        requestedId: requestedId || null,
+        incidentNumber: incident || null,
+        inMemoryMatch: Boolean(byRequest),
+        latestRcaRequestId: latestRcaResult?.request_id || latestRcaResult?.requestId || null,
+        latestRcaIncident: latestRcaResult?.incident_number || latestRcaResult?.incidentNumber || null,
+        pending: pending || null,
+        resultStorePath,
+        rcaStorePath,
+        pendingRcaStorePath
+      });
     }
 
     if (url.pathname === '/api/dashboard' && req.method === 'GET') {
@@ -532,6 +637,7 @@ const server = http.createServer(async (req, res) => {
         const rcaUrl = process.env.MOVEWORKS_TRIGGER_URL || process.env.MOVEWORKS_AI_URL;
         if (!rcaUrl) return sendJson(res, 503, { error: 'MOVEWORKS_TRIGGER_URL or MOVEWORKS_AI_URL is not configured' });
         const callbackUrl = `${externalBaseUrl(req)}/api/moveworks/result`;
+        registerPendingRca(incidentNumber, reqId, startedAt);
         const payload = await callMoveworks(rcaUrl, {
           method: 'POST',
           body: {

@@ -35,7 +35,7 @@ function request(url, options={}) {
   const child=spawn(process.execPath,['server.js'],{cwd:root,env:{...process.env,PORT:String(appPort),MOVEWORKS_TRIGGER_URL:`http://127.0.0.1:${upstreamPort}/trigger`,MOVEWORKS_API_KEY:'test-mw-key',DEFAULT_NOTIFICATION_EMAIL:'demo.user@example.com',RESULT_STORE_PATH:resultStorePath,MOVEWORKS_ASSIGN_URL:`http://127.0.0.1:${upstreamPort}/assign`,MOVEWORKS_NOTIFY_URL:`http://127.0.0.1:${upstreamPort}/notify`,MOVEWORKS_EOD_URL:`http://127.0.0.1:${upstreamPort}/eod`},stdio:['ignore','pipe','pipe']});
   try {
     await new Promise((resolve,reject)=>{const t=setTimeout(()=>reject(new Error('Server startup timeout')),8000);child.stdout.on('data',d=>{if(String(d).includes('listening')){clearTimeout(t);resolve();}});child.on('exit',c=>reject(new Error(`server exited ${c}`)));});
-    let r=await request(`http://127.0.0.1:${appPort}/health`); if(r.status!==200||!r.body.moveworksConfigured||r.body.version!=='12.3.5') throw new Error('health failed');
+    let r=await request(`http://127.0.0.1:${appPort}/health`); if(r.status!==200||!r.body.moveworksConfigured||r.body.version!=='12.3.6') throw new Error('health failed');
     r=await request(`http://127.0.0.1:${appPort}/api/dashboard`); if(r.status!==200||r.body.mode!=='trigger-only'||r.body.source!=='moveworks-trigger') throw new Error('trigger-only dashboard state failed');
     r=await request(`http://127.0.0.1:${appPort}/api/moveworks/test`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt:'Run AI Ticket Governance'})}); if(r.status!==200||r.body.moveworks?.status!=='RECEIVED') throw new Error('Moveworks listener test failed');
     if(lastTriggerBody?.user_email!=='demo.user@example.com'||lastTriggerBody?.prompt!=='Run AI Ticket Governance') throw new Error('Webhook payload shape failed');
@@ -52,10 +52,19 @@ function request(url, options={}) {
     r=await request(`http://127.0.0.1:${appPort}/api/moveworks/result`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:'incident_rca',request_id:rcaRequestId,incident_number:'INC5784096',ai_analysis:'Incident-specific RCA text'})}); if(r.status!==200||r.body.request_id!==rcaRequestId||r.body.incident_number!=='INC5784096') throw new Error('RCA callback POST failed');
     r=await request(`http://127.0.0.1:${appPort}/api/moveworks/result?request_id=${encodeURIComponent(rcaRequestId)}`); if(r.status!==200||r.body.status!=='ready'||r.body.result?.incident_number!=='INC5784096'||r.body.result?.ai_analysis!=='Incident-specific RCA text') throw new Error('RCA callback correlation GET failed');
     r=await request(`http://127.0.0.1:${appPort}/api/dashboard`); if(r.status!==200||r.body.sla?.breached!==3) throw new Error('RCA callback overwrote governance dashboard');
+    // Resilience test: Moveworks callback may lose request_id in listener mapping.
+    // The app must recover correlation from the pending incident request.
+    r=await request(`http://127.0.0.1:${appPort}/api/ai/query`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt:'Give me RCA for INC5784096'})});
+    if(r.status!==202||!r.body.requestId) throw new Error('second RCA trigger failed');
+    const recoveredRequestId=r.body.requestId;
+    r=await request(`http://127.0.0.1:${appPort}/api/moveworks/result`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:'incident_rca',incident_number:'INC5784096',ai_analysis:'Recovered RCA without callback request id'})});
+    if(r.status!==200||r.body.request_id!==recoveredRequestId) throw new Error('RCA request_id recovery from incident failed');
+    r=await request(`http://127.0.0.1:${appPort}/api/moveworks/result?request_id=${encodeURIComponent(recoveredRequestId)}`);
+    if(r.status!==200||r.body.status!=='ready'||r.body.result?.ai_analysis!=='Recovered RCA without callback request id') throw new Error('Recovered RCA correlation GET failed');
     r=await request(`http://127.0.0.1:${appPort}/api/tickets/INC1001/assign`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({assignee:'Taylor'})}); if(r.status!==200||!r.body.success) throw new Error('assign proxy failed');
     r=await request(`http://127.0.0.1:${appPort}/api/tickets/INC1001/notify`,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'}); if(r.status!==200||!r.body.success) throw new Error('notify proxy failed');
     r=await request(`http://127.0.0.1:${appPort}/api/reports/eod`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({morning:9})}); if(r.status!==200||!r.body.success) throw new Error('EOD proxy failed');
-    const page=await fetch(`http://127.0.0.1:${appPort}/`).then(r=>r.text()); if(!page.includes('Moveworks Hackathon')||!page.includes('app.js?v=12.3.5')) throw new Error('page branding/cache-bust failed');
+    const page=await fetch(`http://127.0.0.1:${appPort}/`).then(r=>r.text()); if(!page.includes('Moveworks Hackathon')||!page.includes('app.js?v=12.3.6')) throw new Error('page branding/cache-bust failed');
     const appJs=await fetch(`http://127.0.0.1:${appPort}/app.js`).then(r=>r.text()); if(!appJs.includes('AI Operations Agent')||!appJs.includes('startVoice')||!appJs.includes('renderResults')||!appJs.includes('result.requestId||result.request_id')) throw new Error('MVP agent UI/correlation fallback missing');
     console.log('HTTP integration test passed.');
   } finally {
