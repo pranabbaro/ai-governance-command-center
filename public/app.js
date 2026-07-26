@@ -181,7 +181,38 @@ function renderCommand() {
   <section class="card"><div class="cardhead"><div><h2>Breached Incidents</h2><p>Unique incident numbers returned by the latest ServiceNow SLA governance run</p></div>${badge(`${state.slaIncidentCount} incidents`,'danger')}</div>
       ${state.slaIncidentCount?`<div class="chips">${breachedIncidentNumbers().slice(0,20).map(n=>`<button data-action="aiPrompt" data-arg="Give me RCA for ${escapeHtml(n)}">${escapeHtml(n)}</button>`).join('')}</div>${state.slaIncidentCount>20?`<div class="muted">Showing first 20 of ${state.slaIncidentCount} unique breached incidents. Open Incident SLA Intelligence for the full returned list.</div>`:''}`:'<div class="empty">No breached incident numbers returned yet. Run SLA_Governance to refresh the live incident list.</div>'}
   </section>
-  <section class="card ai-card-shell">${aiInsightCard(true)}</section>`);
+  <section class="card ai-card-shell">${aiInsightCard(true)}</section>
+  <section class="card project-launch-card">
+    <div class="project-launch-icon">PM</div>
+    <div class="project-launch-copy">
+      <div class="project-launch-kicker">INTEGRATED APPLICATION</div>
+      <h2>Project Management Lifecycle</h2>
+      <p>Project planning, meeting actions, Azure DevOps governance, handover workflows and Moveworks-powered project operations.</p>
+      <div class="project-launch-meta">
+        <span>Azure App Service</span>
+        <span>Moveworks Agent Backend</span>
+        <span>Independent Deployment</span>
+      </div>
+    </div>
+    <div class="project-launch-actions">
+      <button class="btn primary" data-action="openProjectPilot">Open Project Management Lifecycle</button>
+      <button class="btn" data-action="openProjectPilotExternal">Open in new tab ↗</button>
+    </div>
+  </section>`);
+}
+
+function renderProjectPilot() {
+  return layout(`<section class="card project-embed-shell">
+    <div class="cardhead">
+      <div><h2>Project Management Lifecycle</h2><p>Independent Azure App Service application with its existing Moveworks Agent backend.</p></div>
+      <div class="actions">
+        <button class="btn" data-action="nav" data-arg="command">← Back to Command Center</button>
+        <button class="btn primary" data-action="openProjectPilotExternal">Open in new tab ↗</button>
+      </div>
+    </div>
+    <div class="project-embed-note">The Project Management Lifecycle remains independently hosted. This embedded view does not change its backend, Moveworks workflows, or deployment.</div>
+    <iframe class="project-embed-frame" src="https://projectpilot-ai-mvp-bhf0apataxa5cphp.centralindia-01.azurewebsites.net/#dashboard" title="Project Management Lifecycle"></iframe>
+  </section>`);
 }
 
 function renderAgeing() {
@@ -1060,7 +1091,7 @@ function readAloud() {
 }
 
 function render() {
-  if(state.page==='agent') app.innerHTML=renderAgent(); else if(state.page==='presentation') app.innerHTML=renderPresentation(); else if(state.page==='results') app.innerHTML=renderResults(); else if(state.page==='ageing') app.innerHTML=renderAgeing(); else if(state.page==='sla') app.innerHTML=renderSla(); else if(state.page==='devops') app.innerHTML=renderDevops(); else if(state.page==='ai') app.innerHTML=renderAi(window.__aiAnswer||''); else app.innerHTML=renderCommand();
+  if(state.page==='agent') app.innerHTML=renderAgent(); else if(state.page==='presentation') app.innerHTML=renderPresentation(); else if(state.page==='results') app.innerHTML=renderResults(); else if(state.page==='ageing') app.innerHTML=renderAgeing(); else if(state.page==='sla') app.innerHTML=renderSla(); else if(state.page==='devops') app.innerHTML=renderDevops(); else if(state.page==='projectpilot') app.innerHTML=renderProjectPilot(); else if(state.page==='ai') app.innerHTML=renderAi(window.__aiAnswer||''); else app.innerHTML=renderCommand();
 }
 
 async function api(path, options={}) {
@@ -1335,6 +1366,8 @@ async function handleAction(action,arg) {
   if(action==='presentationVoice') return startPresentationVoice();
   if(action==='presentationCommand') return handlePresentationCommand(document.getElementById('presentationCommand')?.value||'');
   if(action==='refreshData'){await refreshDashboard(true);return;}
+  if(action==='openProjectPilot'){state.page='projectpilot';render();return;}
+  if(action==='openProjectPilotExternal'){window.open('https://projectpilot-ai-mvp-bhf0apataxa5cphp.centralindia-01.azurewebsites.net/#dashboard','_blank','noopener,noreferrer');return;}
   if(action==='agentAsk') return askAiHome(document.getElementById('agentPrompt')?.value||'',true);
   if(action==='agentPrompt') return askAiHome(arg,true);
   if(action==='startVoice') return startVoice('agentPrompt');

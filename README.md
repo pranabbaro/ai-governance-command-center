@@ -1,3 +1,28 @@
+# v12.9.1 — Project Management Lifecycle Rename
+
+Only the visible integrated application name was changed from **Project Command Center** to **Project Management Lifecycle**.
+
+No existing application behavior, integration URL, Moveworks backend, Incident SLA Intelligence, DevOps Governance, RCA, robot, Command Center logic, or presentation functionality was changed.
+
+---
+
+# v12.9.0 — Project Command Center Integration
+
+A separate Project Command Center card has been added under the AI Governance Command Center.
+
+Integration model:
+- The Project Command Center remains independently hosted in Azure App Service.
+- Its existing Moveworks Agent backend remains unchanged.
+- The AI Governance app provides an embedded view plus an "Open in new tab" fallback.
+- Existing Incident SLA Intelligence, DevOps Governance, RCA, robot, and presentation functionality are unchanged.
+
+Hosted application:
+https://projectpilot-ai-mvp-bhf0apataxa5cphp.centralindia-01.azurewebsites.net/#dashboard
+
+Note: embedded iframe display depends on the hosted Project Command Center allowing framing through its CSP / X-Frame-Options headers. The "Open in new tab" option works independently of iframe support.
+
+---
+
 # v12.8.1 — Command Center Cleanup
 
 Removed the AI Governance Assistant card from Command Center.
