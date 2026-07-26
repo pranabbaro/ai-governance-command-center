@@ -508,7 +508,7 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 200, {
       status: 'ok',
       service: 'ai-governance-command-center',
-      version: '12.9.3',
+      version: '12.9.4',
       moveworksConfigured: Boolean(process.env.MOVEWORKS_DASHBOARD_URL || process.env.MOVEWORKS_AGEING_URL || process.env.MOVEWORKS_SLA_URL || process.env.MOVEWORKS_TRIGGER_URL),
       aiConfigured: Boolean(process.env.MOVEWORKS_AI_URL || process.env.MOVEWORKS_TRIGGER_URL || process.env.MOVEWORKS_RCA_URL),
       rcaDirectConfigured: Boolean(process.env.MOVEWORKS_RCA_URL || process.env.MOVEWORKS_AI_URL),

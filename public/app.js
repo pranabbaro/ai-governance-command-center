@@ -143,14 +143,15 @@ function liveBanner() {
 
 function layout(content) {
   const title = state.page==='results' ? 'AI Operations Result' : (nav.find(x => x[0] === state.page)?.[1] || 'Command Center');
+  const isProjectLifecycle = state.page==='projectpilot';
   return `<div class="shell"><aside class="sidebar">
     <div class="brand"><div class="brandmark">✦</div><div><strong>AI Governance</strong><span>Command Center</span></div></div>
     <div class="hackathon-badge">Moveworks Hackathon</div>
     <nav>${nav.map(([key,label,icon])=>`<button class="navbtn ${state.page===key?'active':''}" data-nav="${key}"><span>${icon}</span>${label}</button>`).join('')}</nav>
     <div class="demo-note">${badge(state.live?'Live':'Integration','success')}<p>Moveworks is the AI and orchestration layer. ServiceNow and Azure DevOps remain systems of record.</p></div>
-  </aside><main class="main">
-    <header class="topbar"><div><h1>${escapeHtml(title)}</h1><p>ServiceNow + Azure DevOps + Moveworks Agent Studio</p></div><div class="refresh-group"><button class="btn" data-action="refreshData">Refresh live data</button><div class="refresh">Auto refresh: 5 min</div></div></header>
-    ${liveBanner()}${content}
+  </aside><main class="main ${isProjectLifecycle?'project-lifecycle-main':''}">
+    ${isProjectLifecycle?'':`<header class="topbar"><div><h1>${escapeHtml(title)}</h1><p>ServiceNow + Azure DevOps + Moveworks Agent Studio</p></div><div class="refresh-group"><button class="btn" data-action="refreshData">Refresh live data</button><div class="refresh">Auto refresh: 5 min</div></div></header>${liveBanner()}`}
+    ${content}
   </main></div>`;
 }
 

@@ -685,3 +685,6 @@
   .project-embed-clean .project-embed-frame{height:75vh;min-height:560px}
   .project-embed-actions-bottom{justify-content:flex-start}
 }
+
+/* v12.9.4: Project Management Lifecycle uses the embedded app directly under the left navigation shell */
+.project-lifecycle-main{padding-top:12px}

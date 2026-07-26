@@ -1,3 +1,20 @@
+# v12.9.4 — Remove Project Management Lifecycle Top Header
+
+Only the Project Management Lifecycle page was changed.
+
+Removed from the top of that page:
+- Project Management Lifecycle page title
+- ServiceNow + Azure DevOps + Moveworks Agent Studio subtitle
+- Refresh live data button
+- Auto refresh: 5 min indicator
+- AI Governance live-status banner on this embedded page
+
+The left navigation, embedded Project Management Lifecycle application, bottom Back/Open buttons, App Service URL, and Moveworks backend remain unchanged.
+
+No other page was changed.
+
+---
+
 # v12.9.3 — Project Management Lifecycle Embedded View Cleanup
 
 Only the Project Management Lifecycle embedded page was changed:
