@@ -1,8 +1,8 @@
 {
   "name": "ai-governance-command-center-appservice",
   "private": true,
-  "version": "12.3.4",
-  "description": "AI Operations Agent with request-correlated incident RCA callbacks and preserved SLA governance dashboard",
+  "version": "12.3.5",
+  "description": "AI Operations Agent with request-correlated incident RCA callbacks with frontend cache-busting and snake/camel case compatibility",
   "engines": {
     "node": ">=20"
   },

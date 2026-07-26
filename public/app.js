@@ -925,7 +925,7 @@ async function askAiHome(prompt, autoSpeak=true) {
       const result=await api('/api/ai/query',{method:'POST',body:JSON.stringify({prompt:clean})});
       if(result.mode==='webhook-trigger'){
         window.__homeAiAnswer=result.answer||'Moveworks accepted the request. Waiting for the live response…'; render();
-        const callback=await waitForMoveworksResult(result.startedAt,result.requestId);
+        const callback=await waitForMoveworksResult(result.startedAt||result.started_at,result.requestId||result.request_id);
         window.__homeAiAnswer=callback?resultSummary(callback,clean):'Moveworks accepted the request, but the workflow is still running.';
         if(callback) await refreshDashboard(false);
       } else window.__homeAiAnswer=result.answer||'No AI response was returned.';
@@ -948,7 +948,7 @@ async function askAi(prompt) {
     const result=await api('/api/ai/query',{method:'POST',body:JSON.stringify({prompt:clean})});
     if(result.mode==='webhook-trigger') {
       window.__aiAnswer=result.answer||'Moveworks accepted the request. Waiting for the live callback…'; render();
-      const callback=await waitForMoveworksResult(result.startedAt,result.requestId);
+      const callback=await waitForMoveworksResult(result.startedAt||result.started_at,result.requestId||result.request_id);
       if(callback) {
         window.__aiAnswer=resultSummary(callback,clean);
         await refreshDashboard(false);

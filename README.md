@@ -115,3 +115,11 @@ Use Microsoft Edge or Google Chrome and allow microphone access.
 - The browser continues polling until the matching request_id callback arrives.
 - Existing governance dashboard snapshot/counts remain isolated from RCA results.
 - Sends both request_id/requestId and incident_number/incidentNumber for listener-mapping compatibility.
+
+
+## v12.3.5 RCA correlation hardening
+- Frontend accepts both `requestId` and `request_id` from `/api/ai/query`.
+- Frontend accepts both `startedAt` and `started_at`.
+- Backend returns both snake_case and camelCase correlation aliases for compatibility.
+- Static asset cache keys were bumped to `12.3.5` so browsers load the corrected JavaScript after deployment.
+- Existing governance dashboard and RCA callback separation remain unchanged.

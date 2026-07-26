@@ -12,5 +12,7 @@ for (const text of ['AI Operations Agent','Command Center','Ageing Tickets','SLA
 for (const endpoint of ['/api/dashboard','/api/ai/query','/api/moveworks/result','/api/reports/eod']) {
   if (!fs.readFileSync(path.join(root,'server.js'),'utf8').includes(endpoint)) throw new Error(`Missing API route: ${endpoint}`);
 }
+if (!js.includes('result.requestId||result.request_id')) throw new Error('Frontend request_id fallback missing');
+if (!html.includes('app.js?v=12.3.5')) throw new Error('Frontend cache-bust version missing');
 new Function(js);
 console.log('Static smoke test passed.');

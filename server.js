@@ -383,7 +383,7 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 200, {
       status: 'ok',
       service: 'ai-governance-command-center',
-      version: '12.3.3',
+      version: '12.3.5',
       moveworksConfigured: Boolean(process.env.MOVEWORKS_DASHBOARD_URL || process.env.MOVEWORKS_AGEING_URL || process.env.MOVEWORKS_SLA_URL || process.env.MOVEWORKS_TRIGGER_URL),
       aiConfigured: Boolean(process.env.MOVEWORKS_AI_URL || process.env.MOVEWORKS_TRIGGER_URL),
       triggerConfigured: Boolean(process.env.MOVEWORKS_TRIGGER_URL),
@@ -554,8 +554,11 @@ const server = http.createServer(async (req, res) => {
           answer: `Moveworks is analyzing ${incidentNumber}. Waiting for the RCA callback…`,
           mode: 'webhook-trigger',
           requestId: reqId,
+          request_id: reqId,
           incidentNumber,
+          incident_number: incidentNumber,
           startedAt,
+          started_at: startedAt,
           callbackUrl,
           moveworks: process.env.EXPOSE_UPSTREAM_RAW === 'true' ? payload : undefined
         });
@@ -595,7 +598,9 @@ const server = http.createServer(async (req, res) => {
         answer: 'Moveworks accepted the governance request. Waiting for the live governance callback…',
         mode: 'webhook-trigger',
         requestId: reqId,
+        request_id: reqId,
         startedAt,
+        started_at: startedAt,
         callbackUrl: `${externalBaseUrl(req)}/api/moveworks/result`,
         moveworks: payload
       });
