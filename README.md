@@ -1,3 +1,18 @@
+# v12.6.0 — SLA Filters + Reassignment
+
+SLA Intelligence now supports:
+- Status filtering
+- Assignment-group filtering
+- Incident/group/assignee search
+- Clear filters
+- Reassign action on each incident card
+
+Reassignment is sent to `/api/tickets/:id/assign` and then through `MOVEWORKS_ASSIGN_URL`.
+The API accepts either `assignment_group`, `assignee`, or both, plus an optional `reason`.
+ServiceNow remains the system of record.
+
+---
+
 # v12.5.1 — Robot Embedded RCA Fix
 
 The robot now recognizes natural incident RCA questions such as:

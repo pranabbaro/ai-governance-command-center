@@ -508,7 +508,7 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 200, {
       status: 'ok',
       service: 'ai-governance-command-center',
-      version: '12.5.1',
+      version: '12.6.0',
       moveworksConfigured: Boolean(process.env.MOVEWORKS_DASHBOARD_URL || process.env.MOVEWORKS_AGEING_URL || process.env.MOVEWORKS_SLA_URL || process.env.MOVEWORKS_TRIGGER_URL),
       aiConfigured: Boolean(process.env.MOVEWORKS_AI_URL || process.env.MOVEWORKS_TRIGGER_URL || process.env.MOVEWORKS_RCA_URL),
       rcaDirectConfigured: Boolean(process.env.MOVEWORKS_RCA_URL || process.env.MOVEWORKS_AI_URL),
@@ -807,9 +807,21 @@ const server = http.createServer(async (req, res) => {
     const assignMatch = url.pathname.match(/^\/api\/tickets\/([^/]+)\/assign$/);
     if (assignMatch && req.method === 'POST') {
       const body = await readJsonBody(req);
-      if (!body.assignee) return sendJson(res, 400, { error: 'assignee is required' });
+      const assignee = String(body.assignee || '').trim();
+      const assignmentGroup = String(body.assignment_group || body.assignmentGroup || '').trim();
+      const reason = String(body.reason || '').trim();
+      if (!assignee && !assignmentGroup) return sendJson(res, 400, { error: 'assignment_group or assignee is required' });
       if (!process.env.MOVEWORKS_ASSIGN_URL) return sendJson(res, 503, { error: 'MOVEWORKS_ASSIGN_URL is not configured' });
-      const payload = await callMoveworks(process.env.MOVEWORKS_ASSIGN_URL, { method: 'POST', body: { ticket_id: decodeURIComponent(assignMatch[1]), assignee: body.assignee } });
+      const payload = await callMoveworks(process.env.MOVEWORKS_ASSIGN_URL, {
+        method: 'POST',
+        body: {
+          ticket_id: decodeURIComponent(assignMatch[1]),
+          assignment_group: assignmentGroup || undefined,
+          assignee: assignee || undefined,
+          reason: reason || undefined,
+          source: body.source || 'dashboard'
+        }
+      });
       return sendJson(res, 200, { success: true, result: unwrap(payload) });
     }
 

@@ -5,6 +5,7 @@ const state = {
   lastRefresh: new Date(), morning: 0, updated: 0, closed: 0, pending: 0,
   ageingTotal: 0, incidentCount: 0, ritmCount: 0, taskCount: 0,
   slaAtRisk: 0, slaCritical: 0, slaBreached: 0, slaTotalAttention: 0, slaCompliance: null,
+  slaStatusFilter: 'all', slaGroupFilter: 'all', slaSearch: '',
   devopsHygiene: 0, devopsNonCompliant: 0, devopsLargestGap: '',
   tickets: [], slaBreaches: [], slaIncidentCount: 0, devopsItems: [], trend: [], aiBriefing: null
 };
@@ -156,7 +157,21 @@ function renderAgeing() {
 }
 
 function renderSla() {
-  const cards = state.slaBreaches.length ? state.slaBreaches.map(x=>{
+  const allRows=Array.isArray(state.slaBreaches)?state.slaBreaches:[];
+  const groups=[...new Set(allRows.map(x=>String(x.team||x.assignment_group||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+  const statuses=[...new Set(allRows.map(x=>String(x.state||x.status||'Breached').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+  const search=String(state.slaSearch||'').trim().toLowerCase();
+  const rows=allRows.filter(x=>{
+    const status=String(x.state||x.status||'Breached').trim();
+    const group=String(x.team||x.assignment_group||'').trim();
+    const matchesStatus=state.slaStatusFilter==='all'||status.toLowerCase()===String(state.slaStatusFilter).toLowerCase();
+    const matchesGroup=state.slaGroupFilter==='all'||group===state.slaGroupFilter;
+    const hay=[incidentNumberOf(x),x.incident_name,x.summary,x.description,group,x.assignee,x.assigned_to].join(' ').toLowerCase();
+    const matchesSearch=!search||hay.includes(search);
+    return matchesStatus&&matchesGroup&&matchesSearch;
+  });
+
+  const cards = rows.length ? rows.map(x=>{
     const number=incidentNumberOf(x);
     const hasRca=hasIncidentRca(x);
     return `<div class="slacard">
@@ -165,17 +180,30 @@ function renderSla() {
       <div class="slameta">
         <span>Priority <strong>${escapeHtml(x.priority||'—')}</strong></span>
         <span>Status <strong>${escapeHtml(x.state||x.status||'Breached')}</strong></span>
+        <span>Assigned To <strong>${escapeHtml(x.assignee||x.assigned_to||'Unassigned')}</strong></span>
         <span>AI RCA <strong>${hasRca?'Ready':'Not included yet'}</strong></span>
         <span>Confidence <strong>${escapeHtml(x.confidence||'—')}</strong></span>
       </div>
       ${hasRca&&x.rca_summary?`<div class="rca-preview"><strong>Likely RCA</strong><p>${escapeHtml(x.rca_summary)}</p></div>`:''}
       <div class="actions">
         ${button(hasRca?'View RCA':'RCA details','viewRca',number,true)}
+        ${button('Reassign','reassignSla',number)}
         ${button('Ask AI','aiPrompt',`Analyze SLA breach ${number}`)}
       </div>
     </div>`;
-  }).join('') : '<div class="empty">No detailed breach records returned by the dashboard endpoint.</div>';
-  return layout(`<section class="metrics four">${metric('SLA At Risk',state.slaAtRisk,'≥75% consumed','orange')}${metric('Critical SLA',state.slaCritical,'≥90% consumed','red')}${metric('SLA Breached',state.slaBreached,'Requires investigation','red')}${metric('Total SLA Attention',state.slaTotalAttention,'At risk + breached','purple')}</section><section class="card ai-card-shell">${aiInsightCard(false)}</section><section class="card"><h2>SLA Breach Intelligence</h2><div class="slagrid">${cards}</div></section>`);
+  }).join('') : '<div class="empty">No breached incidents match the selected filters.</div>';
+
+  return layout(`<section class="metrics four">${metric('SLA At Risk',state.slaAtRisk,'≥75% consumed','orange')}${metric('Critical SLA',state.slaCritical,'≥90% consumed','red')}${metric('SLA Breached',state.slaBreached,'Requires investigation','red')}${metric('Total SLA Attention',state.slaTotalAttention,'At risk + breached','purple')}</section>
+    <section class="card ai-card-shell">${aiInsightCard(false)}</section>
+    <section class="card">
+      <div class="cardhead sla-filter-head"><div><h2>SLA Breach Intelligence</h2><p>${rows.length} of ${allRows.length} breached incidents shown</p></div><button class="btn" data-action="clearSlaFilters">Clear filters</button></div>
+      <div class="sla-filterbar">
+        <label><span>Status</span><select id="slaStatusFilter" class="search"><option value="all">All statuses</option>${statuses.map(v=>`<option value="${escapeHtml(v)}" ${state.slaStatusFilter===v?'selected':''}>${escapeHtml(v)}</option>`).join('')}</select></label>
+        <label><span>Assignment group</span><select id="slaGroupFilter" class="search"><option value="all">All groups</option>${groups.map(v=>`<option value="${escapeHtml(v)}" ${state.slaGroupFilter===v?'selected':''}>${escapeHtml(v)}</option>`).join('')}</select></label>
+        <label class="sla-search-field"><span>Incident / owner search</span><input id="slaSearch" class="search" placeholder="INC5784096, group or assignee" value="${escapeHtml(state.slaSearch)}"></label>
+      </div>
+      <div class="slagrid">${cards}</div>
+    </section>`);
 }
 
 function renderDevops() {
@@ -1065,6 +1093,30 @@ function openAssign(ticketId) {
   document.body.appendChild(overlay);
 }
 
+function openSlaReassign(incidentNumber) {
+  const row=findSlaIncident(incidentNumber);
+  if(!row) return toast(`Incident ${incidentNumber} is not in the latest SLA snapshot.`);
+  state.selectedTicket={
+    id:incidentNumberOf(row),
+    source:'sla',
+    team:row.team||row.assignment_group||'',
+    assignee:row.assignee||row.assigned_to||''
+  };
+  const groups=[...new Set((state.slaBreaches||[]).map(x=>String(x.team||x.assignment_group||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+  const overlay=document.createElement('div'); overlay.className='modalback'; overlay.id='assignModal';
+  overlay.innerHTML=`<div class="modal reassign-modal">
+    <h2>Reassign ${escapeHtml(state.selectedTicket.id)}</h2>
+    <div class="reassign-current"><span>Current group <strong>${escapeHtml(state.selectedTicket.team||'—')}</strong></span><span>Current assignee <strong>${escapeHtml(state.selectedTicket.assignee||'Unassigned')}</strong></span></div>
+    <label class="modal-field"><span>New assignment group</span><select id="assignmentGroupSelect" class="search"><option value="">Select a group</option>${groups.map(g=>`<option value="${escapeHtml(g)}">${escapeHtml(g)}</option>`).join('')}<option value="__custom__">Other / type manually</option></select></label>
+    <label class="modal-field"><span>Custom assignment group</span><input id="assignmentGroupCustom" class="search" placeholder="Optional custom group"></label>
+    <label class="modal-field"><span>Assignee</span><input id="assigneeSelect" class="search" placeholder="Optional individual assignee"></label>
+    <label class="modal-field"><span>Reason</span><input id="assignmentReason" class="search" value="SLA breach remediation"></label>
+    <div class="modal-note">The request is sent through the configured Moveworks assignment action. ServiceNow remains the system of record.</div>
+    <div class="modalactions">${button('Cancel','closeModal')}${button('Reassign incident','confirmSlaReassign','',true)}</div>
+  </div>`;
+  document.body.appendChild(overlay);
+}
+
 async function handleAction(action,arg) {
   if(action==='openPresentation'){state.page='presentation';render();return;}
   if(action==='closePresentation'){stopPresentation(false);state.page='agent';render();return;}
@@ -1099,8 +1151,29 @@ async function handleAction(action,arg) {
   if(action==='viewRca') return openRcaModal(arg);
   if(action==='closeRcaModal'){document.getElementById('rcaModal')?.remove();return;}
   if(action==='readRca'){const row=findSlaIncident(arg);const text=rcaTextForIncident(row);if(text)speakText(text);return;}
+  if(action==='clearSlaFilters'){state.slaStatusFilter='all';state.slaGroupFilter='all';state.slaSearch='';render();return;}
+  if(action==='reassignSla') return openSlaReassign(arg);
   if(action==='nav'){state.page=arg;render();return;} if(action==='assign')return openAssign(arg); if(action==='closeModal'){document.getElementById('assignModal')?.remove();return;}
   if(action==='confirmAssign') { const input=document.getElementById('assigneeSelect'); if(!state.selectedTicket||!input?.value.trim()) return toast('Enter an assignee.'); try { await api(`/api/tickets/${encodeURIComponent(state.selectedTicket.id)}/assign`,{method:'POST',body:JSON.stringify({assignee:input.value.trim()})}); toast(`${state.selectedTicket.id} assignment requested through Moveworks`); document.getElementById('assignModal')?.remove(); await refreshDashboard(); } catch(err){toast(err.message);} return; }
+  if(action==='confirmSlaReassign') {
+    if(!state.selectedTicket) return toast('No incident selected.');
+    const selectedGroup=document.getElementById('assignmentGroupSelect')?.value||'';
+    const customGroup=document.getElementById('assignmentGroupCustom')?.value.trim()||'';
+    const assignment_group=selectedGroup==='__custom__'?customGroup:(selectedGroup||customGroup);
+    const assignee=document.getElementById('assigneeSelect')?.value.trim()||'';
+    const reason=document.getElementById('assignmentReason')?.value.trim()||'SLA breach remediation';
+    if(!assignment_group && !assignee) return toast('Select an assignment group or enter an assignee.');
+    try {
+      await api(`/api/tickets/${encodeURIComponent(state.selectedTicket.id)}/assign`,{
+        method:'POST',
+        body:JSON.stringify({assignment_group,assignee,reason,source:'sla_intelligence'})
+      });
+      toast(`${state.selectedTicket.id} reassignment requested through Moveworks`);
+      document.getElementById('assignModal')?.remove();
+      await refreshDashboard();
+    } catch(err){toast(err.message);}
+    return;
+  }
   if(action==='notifyTicket'){try{await api(`/api/tickets/${encodeURIComponent(arg)}/notify`,{method:'POST',body:'{}'});toast(`Moveworks notification triggered for ${arg}`);}catch(err){toast(err.message);}return;}
   if(action==='testMoveworks'){try{const r=await api('/api/moveworks/test',{method:'POST',body:JSON.stringify({prompt:'Run AI Ticket Governance'})});toast(r.moveworks?.status==='RECEIVED'?'Moveworks connection successful — event received':'Moveworks listener responded successfully');}catch(err){toast(`Moveworks connection failed: ${err.message}`);}return;}
   if(action==='sendEod'){try{await api('/api/reports/eod',{method:'POST',body:JSON.stringify({morning:state.morning,updated:state.updated,closed:state.closed,pending:state.pending,action_rate:actionRate(),backlog_reduction:backlogReduction()})});toast('EOD report triggered through Moveworks');}catch(err){toast(err.message);}return;}
@@ -1111,7 +1184,15 @@ async function handleAction(action,arg) {
 }
 
 document.addEventListener('click',e=>{const navEl=e.target.closest('[data-nav]');if(navEl){state.page=navEl.dataset.nav;render();return;}const actionEl=e.target.closest('[data-action]');if(actionEl)handleAction(actionEl.dataset.action,actionEl.dataset.arg||'');});
-document.addEventListener('input',e=>{if(e.target.id==='ticketSearch'){state.search=e.target.value;render();const el=document.getElementById('ticketSearch');if(el){el.focus();el.setSelectionRange(state.search.length,state.search.length);}} if(e.target.id==='agentPrompt') window.__agentDraft=e.target.value;});
+document.addEventListener('input',e=>{
+  if(e.target.id==='ticketSearch'){state.search=e.target.value;render();const el=document.getElementById('ticketSearch');if(el){el.focus();el.setSelectionRange(state.search.length,state.search.length);}}
+  if(e.target.id==='slaSearch'){state.slaSearch=e.target.value;render();const el=document.getElementById('slaSearch');if(el){el.focus();el.setSelectionRange(state.slaSearch.length,state.slaSearch.length);}}
+  if(e.target.id==='agentPrompt') window.__agentDraft=e.target.value;
+});
+document.addEventListener('change',e=>{
+  if(e.target.id==='slaStatusFilter'){state.slaStatusFilter=e.target.value;render();}
+  if(e.target.id==='slaGroupFilter'){state.slaGroupFilter=e.target.value;render();}
+});
 document.addEventListener('change',e=>{
   if(e.target.id==='pptxUpload'&&e.target.files?.[0]) loadPresentationFile(e.target.files[0]);
   if(e.target.id==='pdfPresentationUpload'&&e.target.files?.[0]) {
