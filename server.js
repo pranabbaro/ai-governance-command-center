@@ -465,6 +465,31 @@ function pickIncidentNumber(payload, fallback = null) {
   return p.incident_number || p.incidentNumber || fallback;
 }
 
+function embeddedRcaAnswer(row = {}) {
+  const number = row.incident_number || row.number || row.id || 'Incident';
+  const factors = Array.isArray(row.contributing_factors) ? row.contributing_factors.filter(Boolean) : [];
+  const evidence = Array.isArray(row.evidence) ? row.evidence.filter(Boolean) : [];
+  const parts = [`${number} — SLA Breach RCA`];
+  if (row.rca_summary) parts.push(`RCA Summary\n${row.rca_summary}`);
+  if (row.likely_root_cause) parts.push(`Likely Root Cause\n${row.likely_root_cause}`);
+  if (factors.length) parts.push(`Contributing Factors\n${factors.map(x => `• ${x}`).join('\n')}`);
+  if (evidence.length) parts.push(`Evidence\n${evidence.map(x => `• ${x}`).join('\n')}`);
+  if (row.corrective_action) parts.push(`Corrective Action\n${row.corrective_action}`);
+  if (row.preventive_action) parts.push(`Preventive Action\n${row.preventive_action}`);
+  if (row.confidence) parts.push(`Confidence\n${row.confidence}`);
+  return parts.join('\n\n');
+}
+
+function findEmbeddedRca(incidentNumber) {
+  if (!incidentNumber || !latestMoveworksResult) return null;
+  const dashboard = normalizeDashboardPayload(latestMoveworksResult);
+  const key = String(incidentNumber).trim().toUpperCase();
+  return (dashboard.slaBreaches || []).find(row => {
+    const n = String(row.incident_number || row.number || row.id || '').trim().toUpperCase();
+    return n === key;
+  }) || null;
+}
+
 function externalBaseUrl(req) {
   if (process.env.PUBLIC_BASE_URL) return process.env.PUBLIC_BASE_URL.replace(/\/$/, '');
   const proto = String(req.headers['x-forwarded-proto'] || 'http').split(',')[0].trim();
@@ -483,7 +508,7 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 200, {
       status: 'ok',
       service: 'ai-governance-command-center',
-      version: '12.5.0',
+      version: '12.5.1',
       moveworksConfigured: Boolean(process.env.MOVEWORKS_DASHBOARD_URL || process.env.MOVEWORKS_AGEING_URL || process.env.MOVEWORKS_SLA_URL || process.env.MOVEWORKS_TRIGGER_URL),
       aiConfigured: Boolean(process.env.MOVEWORKS_AI_URL || process.env.MOVEWORKS_TRIGGER_URL || process.env.MOVEWORKS_RCA_URL),
       rcaDirectConfigured: Boolean(process.env.MOVEWORKS_RCA_URL || process.env.MOVEWORKS_AI_URL),
@@ -663,15 +688,40 @@ const server = http.createServer(async (req, res) => {
       const incidentNumber = extractIncidentNumber(prompt);
       const rcaIntent = isRcaPrompt(prompt);
 
-      // Incident RCA uses a direct synchronous Moveworks endpoint.
-      // This intentionally avoids callback, request correlation and browser polling.
-      // Configure MOVEWORKS_RCA_URL to the endpoint that executes
-      // SLA_Breach_AI_Analysis and returns its final result.
+      // Incident RCA first reads the RCA already embedded in the latest
+      // SLA_Governance dashboard snapshot. This is the preferred path and
+      // requires no second Moveworks workflow, callback or polling.
       if (rcaIntent) {
+        const embedded = findEmbeddedRca(incidentNumber);
+        if (embedded && embedded.hasRca) {
+          return sendJson(res, 200, {
+            answer: embeddedRcaAnswer(embedded),
+            mode: 'embedded-dashboard-rca',
+            incident_number: incidentNumber,
+            incidentNumber,
+            request_id: reqId,
+            requestId: reqId,
+            started_at: startedAt,
+            startedAt
+          });
+        }
+
+        // Optional fallback only when a direct synchronous RCA URL is configured.
+        // In the embedded-RCA design this setting is not required.
         const rcaUrl = process.env.MOVEWORKS_RCA_URL || process.env.MOVEWORKS_AI_URL;
         if (!rcaUrl) {
-          return sendJson(res, 503, {
-            error: 'Direct RCA is not configured. Set MOVEWORKS_RCA_URL to the synchronous Moveworks SLA_Breach_AI_Analysis endpoint.'
+          const message = embedded
+            ? `I found ${incidentNumber} in the latest SLA governance snapshot, but RCA details are not available in that record. Run SLA_Governance again to refresh the embedded RCA data.`
+            : `I could not find ${incidentNumber} in the latest breached-incident governance snapshot. Run SLA_Governance again and refresh the dashboard.`;
+          return sendJson(res, 200, {
+            answer: message,
+            mode: 'embedded-dashboard-rca-unavailable',
+            incident_number: incidentNumber,
+            incidentNumber,
+            request_id: reqId,
+            requestId: reqId,
+            started_at: startedAt,
+            startedAt
           });
         }
 

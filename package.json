@@ -1,8 +1,8 @@
 {
   "name": "ai-governance-command-center-appservice",
   "private": true,
-  "version": "12.5.0",
-  "description": "AI Operations Agent with RCA embedded in breached incident dashboard records",
+  "version": "12.5.1",
+  "description": "AI Operations Agent with robust robot RCA intent detection using embedded dashboard RCA",
   "engines": {
     "node": ">=20"
   },

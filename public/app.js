@@ -214,9 +214,31 @@ function localOperationalResult(prompt) {
   const mentionsBreach=/\b(breach|breached|breaches)\b/.test(q);
   const mentionsSla=/\bsla\b/.test(q);
   const incidentMatch=clean.match(/\bINC\d+\b/i);
-  if(incidentMatch && /\b(rca|root cause|why.*breach|breach reason|analy[sz]e)\b/i.test(clean)) {
+  const asksIncidentRca=Boolean(
+    incidentMatch && (
+      /\b(rca|root cause|root-cause|cause|reason)\b/i.test(clean)
+      || (/\bwhy\b/i.test(clean) && /\b(sla|breach|breached|breaches|breaching)\b/i.test(clean))
+      || /\b(analy[sz]e|investigate|explain)\b/i.test(clean)
+      || /\b(sla|breach|breached|breaches|breaching)\b/i.test(clean)
+    )
+  );
+  if(asksIncidentRca) {
     const row=findSlaIncident(incidentMatch[0]);
-    if(row && hasIncidentRca(row)) return {kind:'incident-rca', rows:[row], answer:rcaTextForIncident(row)};
+    if(row && hasIncidentRca(row)) {
+      return {kind:'incident-rca', rows:[row], answer:rcaTextForIncident(row)};
+    }
+    if(row) {
+      return {
+        kind:'incident-rca-unavailable',
+        rows:[row],
+        answer:`I found **${incidentNumberOf(row)}** in the latest SLA governance snapshot, but RCA details were not included in that incident record. Run SLA_Governance again to refresh the embedded RCA data.`
+      };
+    }
+    return {
+      kind:'incident-rca-unavailable',
+      rows:[],
+      answer:`I could not find **${incidentMatch[0].toUpperCase()}** in the latest breached-incident governance snapshot. Refresh SLA_Governance and try again.`
+    };
   }
   if(wantsShow && mentionsBreach && (mentionsSla || /\b(incident|incidents|ticket|tickets)\b/.test(q))) {
     const rows=agentTicketRows('breached');

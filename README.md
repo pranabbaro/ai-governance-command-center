@@ -1,3 +1,19 @@
+# v12.5.1 — Robot Embedded RCA Fix
+
+The robot now recognizes natural incident RCA questions such as:
+
+- Give me RCA for INC5784096
+- Why is INC5784096 breached?
+- Why did INC5784096 breach SLA?
+- Tell me why SLA is breached for INC5784096
+- Explain INC5784096 SLA breach
+- Analyze INC5784096
+
+The preferred RCA source is the RCA already embedded in the latest SLA_Governance dashboard snapshot.
+`MOVEWORKS_RCA_URL` is not required for this path.
+
+---
+
 # v12.5.0 — RCA embedded in breached incidents
 
 The dashboard now supports compact RCA data returned inside each `breached_incidents` record.
