@@ -7,18 +7,13 @@ const port = Number(process.env.PORT || 8080);
 const publicDir = path.join(__dirname, 'public');
 const requestTimeoutMs = Number(process.env.UPSTREAM_TIMEOUT_MS || 25000);
 const resultStorePath = process.env.RESULT_STORE_PATH || (process.env.WEBSITE_SITE_NAME ? '/home/data/ai-governance-latest-result.json' : '/tmp/ai-governance-latest-result.json');
-const governanceStorePath = process.env.GOVERNANCE_STORE_PATH || (process.env.WEBSITE_SITE_NAME ? '/home/data/ai-governance-latest-snapshot.json' : '/tmp/ai-governance-latest-snapshot.json');
 let latestMoveworksResult = null;
-let latestGovernanceResult = null;
+let latestRcaResult = null;
+const resultsByRequest = new Map();
 
 function loadLatestResult() {
   try {
     if (fs.existsSync(resultStorePath)) latestMoveworksResult = JSON.parse(fs.readFileSync(resultStorePath, 'utf8'));
-    if (fs.existsSync(governanceStorePath)) latestGovernanceResult = JSON.parse(fs.readFileSync(governanceStorePath, 'utf8'));
-    // Backward compatibility: promote an older stored governance result if it contains SLA data.
-    if (!latestGovernanceResult && latestMoveworksResult && latestMoveworksResult.sla && latestMoveworksResult.callbackType !== 'incident_rca') {
-      latestGovernanceResult = latestMoveworksResult;
-    }
   } catch (err) {
     console.warn('Unable to load previous Moveworks result:', err.message);
   }
@@ -34,14 +29,37 @@ function saveLatestResult(value) {
   }
 }
 
-function saveGovernanceResult(value) {
-  latestGovernanceResult = value;
-  try {
-    fs.mkdirSync(path.dirname(governanceStorePath), { recursive: true });
-    fs.writeFileSync(governanceStorePath, JSON.stringify(value, null, 2));
-  } catch (err) {
-    console.warn('Unable to persist governance snapshot:', err.message);
+function isIncidentRcaPayload(value = {}) {
+  const p = unwrap(value);
+  const type = String(p.type || p.result_type || p.intent || '').toLowerCase();
+  const incident = String(p.incident_number || p.incidentNumber || '').trim();
+  const analysis = p.ai_analysis || p.analysis || p.generated_output || p.generatedOutput;
+  return type === 'incident_rca' || Boolean(incident && analysis);
+}
+
+function saveRcaResult(value) {
+  latestRcaResult = value;
+  const reqId = value?.request_id || value?.requestId || null;
+  if (reqId) {
+    resultsByRequest.set(String(reqId), value);
+    // Keep bounded memory in long-running App Service instances.
+    if (resultsByRequest.size > 200) {
+      const oldest = resultsByRequest.keys().next().value;
+      if (oldest) resultsByRequest.delete(oldest);
+    }
   }
+}
+
+function extractIncidentNumber(prompt) {
+  const match = String(prompt || '').toUpperCase().match(/\bINC\d+\b/);
+  return match ? match[0] : null;
+}
+
+function isRcaPrompt(prompt) {
+  const q = String(prompt || '').toLowerCase();
+  const incident = extractIncidentNumber(prompt);
+  if (!incident) return false;
+  return /\b(rca|root cause|why|reason|breach|breached|analy[sz]e|analysis|cause|corrective|preventive)\b/.test(q);
 }
 
 loadLatestResult();
@@ -104,11 +122,11 @@ function immediateGovernanceAnswer(prompt) {
   const mentionsIncident = /\b(incident|incidents|inc)\b/.test(q);
 
   if ((mentionsSla || mentionsIncident) && mentionsBreach) {
-    const detailCount = Array.isArray(d.slaBreaches) ? d.slaBreaches.length : 0;
-    const incidentNote = mentionsIncident && detailCount
-      ? ` Incident details are available for ${detailCount} returned SLA records.`
-      : '';
-    return `**${breached} breached SLA records** are currently reported in the latest live ServiceNow governance data.${incidentNote}`;
+    if (mentionsIncident && Array.isArray(d.slaBreaches) && d.slaBreaches.length) {
+      const uniqueIncidents = new Set(d.slaBreaches.map(x => String(x.incident_number || x.id || x.number || '').trim()).filter(Boolean)).size;
+      if (uniqueIncidents) return `**${uniqueIncidents} unique breached incidents** are currently available in the latest live ServiceNow SLA governance result. The underlying SLA record count is **${breached}**.`;
+    }
+    return `**${breached} breached SLA records** are currently reported in the latest live ServiceNow governance data.`;
   }
   if (mentionsSla && /\bcritical\b/.test(q)) return `**${critical} critical SLA records** are currently reported in the latest live ServiceNow governance data.`;
   if (mentionsSla && /\b(at risk|risk)\b/.test(q)) return `**${atRisk} SLA records are at risk** in the latest live ServiceNow governance data.`;
@@ -235,8 +253,6 @@ function normalizeDashboardPayload(payload) {
   const devops = unwrap(p.devops || p.devops_result || {});
   const ticketsRaw = p.tickets || ageing.tickets || p.ageing_tickets || [];
   const slaBreachesRaw = p.slaBreaches || p.sla_breaches || p.breached_incidents || sla.breaches || sla.breached_incidents || [];
-  const normalizedSlaBreaches = Array.isArray(slaBreachesRaw) ? slaBreachesRaw.map(normalizeSlaBreach) : [];
-  const breachedIncidentNumbers = [...new Set(normalizedSlaBreaches.map(x => x.number || x.id).filter(Boolean))];
   const devopsItemsRaw = p.devopsItems || p.devops_items || devops.items || [];
 
   const incidentCount = num(ageing.incident_count ?? ageing.incidents ?? p.incident_count);
@@ -252,15 +268,7 @@ function normalizeDashboardPayload(payload) {
     mode: p.mode || 'live',
     generatedAt: p.generatedAt || p.generated_at || p.receivedAt || p.received_at || new Date().toISOString(),
     ageing: { incidentCount, ritmCount, taskCount, total: ageingTotal },
-    sla: {
-      atRisk: slaAtRisk,
-      critical: slaCritical,
-      breached: slaBreached,
-      totalAttention: num(sla.total_sla_attention ?? sla.totalAttention ?? p.total_sla_attention, slaAtRisk + slaBreached),
-      compliance: p.sla_compliance ?? sla.compliance ?? null,
-      incidentCount: num(sla.incident_count ?? sla.incidentCount ?? p.sla_incident_count, breachedIncidentNumbers.length),
-      incidentNumbers: Array.isArray(sla.incident_numbers) ? sla.incident_numbers : (Array.isArray(sla.incidentNumbers) ? sla.incidentNumbers : breachedIncidentNumbers)
-    },
+    sla: { atRisk: slaAtRisk, critical: slaCritical, breached: slaBreached, totalAttention: num(sla.total_sla_attention ?? sla.totalAttention ?? p.total_sla_attention, slaAtRisk + slaBreached), compliance: p.sla_compliance ?? sla.compliance ?? null },
     daily: {
       morning: num(daily.morning ?? daily.morning_count, ageingTotal),
       updated: num(daily.updated ?? daily.updated_count),
@@ -270,7 +278,7 @@ function normalizeDashboardPayload(payload) {
       backlogReduction: daily.backlogReduction ?? daily.backlog_reduction ?? null
     },
     tickets: Array.isArray(ticketsRaw) ? ticketsRaw.map(normalizeTicket) : [],
-    slaBreaches: normalizedSlaBreaches,
+    slaBreaches: Array.isArray(slaBreachesRaw) ? slaBreachesRaw.map(normalizeSlaBreach) : [],
     devops: {
       hygiene: num(devops.hygiene ?? devops.overall_hygiene ?? p.devops_hygiene),
       nonCompliant: num(devops.non_compliant ?? devops.nonCompliant),
@@ -318,9 +326,8 @@ async function buildDashboard() {
     return normalizeDashboardPayload(await callMoveworks(process.env.MOVEWORKS_DASHBOARD_URL));
   }
 
-  // The dashboard must use the latest full governance snapshot, never an RCA-only callback.
-  if (latestGovernanceResult) {
-    return normalizeDashboardPayload(latestGovernanceResult);
+  if (latestMoveworksResult) {
+    return normalizeDashboardPayload(latestMoveworksResult);
   }
 
   // Optional split endpoints: useful when Moveworks exposes ageing/SLA/DevOps as separate published APIs.
@@ -376,7 +383,7 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 200, {
       status: 'ok',
       service: 'ai-governance-command-center',
-      version: '12.3.2',
+      version: '12.3.3',
       moveworksConfigured: Boolean(process.env.MOVEWORKS_DASHBOARD_URL || process.env.MOVEWORKS_AGEING_URL || process.env.MOVEWORKS_SLA_URL || process.env.MOVEWORKS_TRIGGER_URL),
       aiConfigured: Boolean(process.env.MOVEWORKS_AI_URL || process.env.MOVEWORKS_TRIGGER_URL),
       triggerConfigured: Boolean(process.env.MOVEWORKS_TRIGGER_URL),
@@ -411,77 +418,70 @@ const server = http.createServer(async (req, res) => {
       const body = await readJsonBody(req);
       const receivedAt = new Date().toISOString();
       const normalizedInput = normalizeCallbackPayload({ ...body, receivedAt });
-      const dashboard = normalizeDashboardPayload(normalizedInput);
-      const isIncidentRca = Boolean(
-        (body.incident_number || body.incidentNumber) &&
-        (body.ai_analysis || body.analysis || body.generated_output) &&
-        body.breached_count === undefined &&
-        !Array.isArray(body.breached_incidents)
-      );
+      const reqId = body.request_id || body.requestId || null;
 
-      // RCA callbacks are intentionally merged with the last governance snapshot so
-      // a single incident analysis never wipes the dashboard counts / incident list.
-      const previous = latestMoveworksResult && typeof latestMoveworksResult === 'object' ? latestMoveworksResult : {};
-      const rcaIncidentNumber = body.incident_number || body.incidentNumber || null;
-      const rcaAnalysis = body.ai_analysis || body.analysis || body.generated_output || null;
-      const stored = isIncidentRca ? {
-        ...previous,
-        aiBriefing: rcaAnalysis,
-        ai_analysis: rcaAnalysis,
-        incident_number: rcaIncidentNumber,
-        lastRca: {
-          incident_number: rcaIncidentNumber,
-          ai_analysis: rcaAnalysis,
+      // Incident RCA callbacks are request-scoped. Keep them separate from the
+      // dashboard governance snapshot so an RCA response never resets KPI counts.
+      if (isIncidentRcaPayload(normalizedInput)) {
+        const rcaStored = {
+          ...normalizedInput,
+          request_id: reqId,
+          incident_number: body.incident_number || body.incidentNumber || normalizedInput.incident_number || null,
+          ai_analysis: body.ai_analysis || normalizedInput.ai_analysis || normalizedInput.analysis || null,
+          type: body.type || normalizedInput.type || 'incident_rca',
+          prompt: body.prompt || null,
           receivedAt
-        },
-        callbackType: 'incident_rca',
-        source: 'moveworks-callback',
-        mode: 'live-callback',
-        generatedAt: receivedAt,
-        // Do not inherit an older request id; RCA callback currently does not carry it.
-        request_id: body.request_id || body.requestId || null,
-        prompt: body.prompt || null,
-        receivedAt
-      } : {
+        };
+        saveRcaResult(rcaStored);
+        return sendJson(res, 200, {
+          status: 'ok',
+          message: 'Moveworks RCA result received',
+          receivedAt,
+          request_id: rcaStored.request_id,
+          incident_number: rcaStored.incident_number
+        });
+      }
+
+      const dashboard = normalizeDashboardPayload(normalizedInput);
+      const stored = {
         ...normalizedInput,
         ...dashboard,
-        lastRca: previous.lastRca || null,
-        request_id: body.request_id || body.requestId || null,
+        request_id: reqId,
         prompt: body.prompt || null,
         receivedAt
       };
       saveLatestResult(stored);
-      if (!isIncidentRca) saveGovernanceResult(stored);
-      return sendJson(res, 200, { status: 'ok', message: isIncidentRca ? 'Moveworks RCA result received' : 'Moveworks governance result received', receivedAt, request_id: stored.request_id });
+      if (stored.request_id) resultsByRequest.set(String(stored.request_id), stored);
+      return sendJson(res, 200, { status: 'ok', message: 'Moveworks governance result received', receivedAt, request_id: stored.request_id });
     }
 
     if (url.pathname === '/api/moveworks/result' && req.method === 'GET') {
-      if (!latestMoveworksResult) return sendJson(res, 200, { status: 'waiting', message: 'No Moveworks governance result received yet' });
+      const requestedId = url.searchParams.get('request_id');
       const since = url.searchParams.get('since');
+
+      // A request_id means the browser is waiting for one specific async AI/RCA
+      // response. Never satisfy it with an unrelated governance snapshot.
+      if (requestedId) {
+        const exact = resultsByRequest.get(requestedId)
+          || (latestRcaResult && String(latestRcaResult.request_id || '') === requestedId ? latestRcaResult : null);
+        if (!exact) return sendJson(res, 200, { status: 'waiting', message: 'Waiting for matching Moveworks RCA result', request_id: requestedId });
+        if (since) {
+          const resultTime = Date.parse(exact.receivedAt || exact.generatedAt || 0);
+          const sinceTime = Date.parse(since);
+          if (Number.isFinite(sinceTime) && (!Number.isFinite(resultTime) || resultTime <= sinceTime)) {
+            return sendJson(res, 200, { status: 'waiting', message: 'Waiting for a newer matching Moveworks RCA result', request_id: requestedId });
+          }
+        }
+        return sendJson(res, 200, { status: 'ready', result: exact });
+      }
+
+      if (!latestMoveworksResult) return sendJson(res, 200, { status: 'waiting', message: 'No Moveworks governance result received yet' });
       if (since) {
         const resultTime = Date.parse(latestMoveworksResult.receivedAt || latestMoveworksResult.generatedAt || 0);
         const sinceTime = Date.parse(since);
         if (Number.isFinite(sinceTime) && (!Number.isFinite(resultTime) || resultTime <= sinceTime)) {
           return sendJson(res, 200, { status: 'waiting', message: 'Waiting for a newer Moveworks governance result' });
         }
-      }
-      const incidentNumber = url.searchParams.get('incident_number');
-      if (incidentNumber) {
-        const lastRca = latestMoveworksResult.lastRca || {};
-        const rcaNumber = String(lastRca.incident_number || latestMoveworksResult.incident_number || '').toUpperCase();
-        if (rcaNumber !== String(incidentNumber).toUpperCase()) {
-          return sendJson(res, 200, { status: 'waiting', message: 'Waiting for RCA for the requested incident' });
-        }
-        const rcaTime = Date.parse(lastRca.receivedAt || latestMoveworksResult.receivedAt || 0);
-        const sinceTime = Date.parse(since || 0);
-        if (since && Number.isFinite(sinceTime) && (!Number.isFinite(rcaTime) || rcaTime <= sinceTime)) {
-          return sendJson(res, 200, { status: 'waiting', message: 'Waiting for a newer RCA result' });
-        }
-        return sendJson(res, 200, { status: 'ready', result: latestMoveworksResult });
-      }
-      const requestId = url.searchParams.get('request_id');
-      if (requestId && latestMoveworksResult.request_id && latestMoveworksResult.request_id !== requestId) {
-        return sendJson(res, 200, { status: 'waiting', message: 'Waiting for matching Moveworks governance result' });
       }
       return sendJson(res, 200, { status: 'ready', result: latestMoveworksResult });
     }
@@ -519,30 +519,45 @@ const server = http.createServer(async (req, res) => {
       const immediate = immediateGovernanceAnswer(prompt);
       if (immediate) return sendJson(res, 200, { answer: immediate, mode: 'instant-kpi' });
       if (process.env.MOVEWORKS_AI_URL) {
+        const reqId = requestId();
+        const incidentNumber = extractIncidentNumber(prompt);
         const payload = await callMoveworks(process.env.MOVEWORKS_AI_URL, {
           method: 'POST',
-          body: { prompt, user_email: body.user_email || process.env.DEFAULT_NOTIFICATION_EMAIL || undefined, context: body.context || 'dashboard' }
+          body: {
+            prompt,
+            incident_number: incidentNumber || undefined,
+            request_id: reqId,
+            intent: isRcaPrompt(prompt) ? 'incident_rca' : 'governance_ai',
+            user_email: body.user_email || process.env.DEFAULT_NOTIFICATION_EMAIL || undefined,
+            context: body.context || 'dashboard'
+          }
         });
-        return sendJson(res, 200, { answer: pickAiAnswer(payload), mode: 'synchronous-ai', raw: process.env.EXPOSE_UPSTREAM_RAW === 'true' ? payload : undefined });
+        return sendJson(res, 200, { answer: pickAiAnswer(payload), mode: 'synchronous-ai', requestId: reqId, raw: process.env.EXPOSE_UPSTREAM_RAW === 'true' ? payload : undefined });
       }
       if (!process.env.MOVEWORKS_TRIGGER_URL) return sendJson(res, 503, { error: 'MOVEWORKS_AI_URL or MOVEWORKS_TRIGGER_URL is not configured' });
       const startedAt = new Date().toISOString();
       const reqId = requestId();
+      const incidentNumber = extractIncidentNumber(prompt);
+      const rcaIntent = isRcaPrompt(prompt);
       const payload = await callMoveworks(process.env.MOVEWORKS_TRIGGER_URL, {
         method: 'POST',
         body: {
           event_type: 'ticket_governance.ai_prompt',
           prompt,
+          // These two fields are intentionally top-level so the Moveworks listener
+          // can map them directly to SLA_Breach_AI_Analysis input arguments.
+          incident_number: incidentNumber || undefined,
+          request_id: reqId,
+          intent: rcaIntent ? 'incident_rca' : 'governance_ai',
           user_email: body.user_email || process.env.DEFAULT_NOTIFICATION_EMAIL || undefined,
           context: body.context || 'dashboard',
           source: 'azure_app_service_dashboard',
           requested_at: startedAt,
-          request_id: reqId,
           callback_url: `${externalBaseUrl(req)}/api/moveworks/result`
         }
       });
       return sendJson(res, 202, {
-        answer: 'Moveworks accepted the governance request. Waiting for the live governance callback…',
+        answer: rcaIntent && incidentNumber ? `Moveworks is analyzing ${incidentNumber}. Waiting for the RCA callback…` : 'Moveworks accepted the governance request. Waiting for the live governance callback…',
         mode: 'webhook-trigger',
         requestId: reqId,
         startedAt,

@@ -6,9 +6,7 @@ const root = path.join(__dirname, '..');
 const upstreamPort = 19091;
 const appPort = 19092;
 const resultStorePath = `/tmp/ai-governance-test-${process.pid}.json`;
-const governanceStorePath = `/tmp/ai-governance-snapshot-test-${process.pid}.json`;
-try { require('node:fs').unlinkSync(resultStorePath); } catch {} try { require('node:fs').unlinkSync(governanceStorePath); } catch {}
-try { require('node:fs').unlinkSync(governanceStorePath); } catch {}
+try { require('node:fs').unlinkSync(resultStorePath); } catch {}
 let lastTriggerBody = null;
 
 const mock = http.createServer((req,res)=>{
@@ -34,10 +32,10 @@ function request(url, options={}) {
 
 (async()=>{
   await new Promise(resolve=>mock.listen(upstreamPort,'127.0.0.1',resolve));
-  const child=spawn(process.execPath,['server.js'],{cwd:root,env:{...process.env,PORT:String(appPort),MOVEWORKS_TRIGGER_URL:`http://127.0.0.1:${upstreamPort}/trigger`,MOVEWORKS_API_KEY:'test-mw-key',DEFAULT_NOTIFICATION_EMAIL:'demo.user@example.com',RESULT_STORE_PATH:resultStorePath,GOVERNANCE_STORE_PATH:governanceStorePath,MOVEWORKS_ASSIGN_URL:`http://127.0.0.1:${upstreamPort}/assign`,MOVEWORKS_NOTIFY_URL:`http://127.0.0.1:${upstreamPort}/notify`,MOVEWORKS_EOD_URL:`http://127.0.0.1:${upstreamPort}/eod`},stdio:['ignore','pipe','pipe']});
+  const child=spawn(process.execPath,['server.js'],{cwd:root,env:{...process.env,PORT:String(appPort),MOVEWORKS_TRIGGER_URL:`http://127.0.0.1:${upstreamPort}/trigger`,MOVEWORKS_API_KEY:'test-mw-key',DEFAULT_NOTIFICATION_EMAIL:'demo.user@example.com',RESULT_STORE_PATH:resultStorePath,MOVEWORKS_ASSIGN_URL:`http://127.0.0.1:${upstreamPort}/assign`,MOVEWORKS_NOTIFY_URL:`http://127.0.0.1:${upstreamPort}/notify`,MOVEWORKS_EOD_URL:`http://127.0.0.1:${upstreamPort}/eod`},stdio:['ignore','pipe','pipe']});
   try {
     await new Promise((resolve,reject)=>{const t=setTimeout(()=>reject(new Error('Server startup timeout')),8000);child.stdout.on('data',d=>{if(String(d).includes('listening')){clearTimeout(t);resolve();}});child.on('exit',c=>reject(new Error(`server exited ${c}`)));});
-    let r=await request(`http://127.0.0.1:${appPort}/health`); if(r.status!==200||!r.body.moveworksConfigured||r.body.version!=='12.3.2') throw new Error('health failed');
+    let r=await request(`http://127.0.0.1:${appPort}/health`); if(r.status!==200||!r.body.moveworksConfigured||r.body.version!=='12.3.3') throw new Error('health failed');
     r=await request(`http://127.0.0.1:${appPort}/api/dashboard`); if(r.status!==200||r.body.mode!=='trigger-only'||r.body.source!=='moveworks-trigger') throw new Error('trigger-only dashboard state failed');
     r=await request(`http://127.0.0.1:${appPort}/api/moveworks/test`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt:'Run AI Ticket Governance'})}); if(r.status!==200||r.body.moveworks?.status!=='RECEIVED') throw new Error('Moveworks listener test failed');
     if(lastTriggerBody?.user_email!=='demo.user@example.com'||lastTriggerBody?.prompt!=='Run AI Ticket Governance') throw new Error('Webhook payload shape failed');
@@ -45,11 +43,15 @@ function request(url, options={}) {
     r=await request(`http://127.0.0.1:${appPort}/api/moveworks/result`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({request_id:lastTriggerBody.request_id,at_risk_count:5,critical_count:2,breached_count:3,total_sla_attention:8,breached_incidents:[{incident_number:'INC5784096',incident_name:'Unable to reset timesheet',assignment_group:'PACE 1ST Service desk',assigned_to:'Nithin M S',priority:'4 - Low',state:'In progress',percentage:'1000.71',sla:'SHS_ITSM_INC_E2E_P4'}],ageing:{incident_count:4,ritm_count:3,task_count:2,total_ageing_count:9},ai_analysis:'Callback AI analysis'})}); if(r.status!==200||r.body.status!=='ok') throw new Error('callback POST failed');
     r=await request(`http://127.0.0.1:${appPort}/api/moveworks/result?request_id=${encodeURIComponent(lastTriggerBody.request_id)}`); if(r.status!==200||r.body.status!=='ready'||r.body.result?.sla?.breached!==3) throw new Error('callback GET failed');
     r=await request(`http://127.0.0.1:${appPort}/api/dashboard`); if(r.status!==200||r.body.sla?.breached!==3||r.body.sla?.totalAttention!==8||r.body.ageing?.total!==9||r.body.aiBriefing!=='Callback AI analysis'||r.body.slaBreaches?.[0]?.id!=='INC5784096'||r.body.slaBreaches?.[0]?.summary!=='Unable to reset timesheet'||r.body.slaBreaches?.[0]?.team!=='PACE 1ST Service desk') throw new Error('callback dashboard projection failed');
-    r=await request(`http://127.0.0.1:${appPort}/api/moveworks/result`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({incident_number:'INC5784096',ai_analysis:'Incident-specific RCA'})}); if(r.status!==200||r.body.status!=='ok') throw new Error('RCA callback POST failed');
-    r=await request(`http://127.0.0.1:${appPort}/api/dashboard`); if(r.status!==200||r.body.sla?.breached!==3||r.body.sla?.incidentCount!==1||r.body.slaBreaches?.[0]?.id!=='INC5784096') throw new Error('RCA callback wiped governance snapshot');
-    r=await request(`http://127.0.0.1:${appPort}/api/ai/query`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt:'How many SLA breached incidents are there?'})}); if(r.status!==200||r.body.mode!=='instant-kpi'||!r.body.answer.includes('3 breached SLA records')) throw new Error('instant SLA KPI answer failed');
+    r=await request(`http://127.0.0.1:${appPort}/api/ai/query`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt:'How many SLA breached incidents are there?'})}); if(r.status!==200||r.body.mode!=='instant-kpi'||!(r.body.answer.includes('1 unique breached incidents')||r.body.answer.includes('3 breached SLA records'))) throw new Error('instant SLA KPI answer failed');
     r=await request(`http://127.0.0.1:${appPort}/api/ai/query`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt:'Why SLA?'})}); if(r.status!==202||r.body.mode!=='webhook-trigger'||!r.body.answer.includes('accepted')) throw new Error('AI webhook fallback failed');
     if(lastTriggerBody?.user_email!=='demo.user@example.com'||lastTriggerBody?.prompt!=='Why SLA?'||lastTriggerBody?.event_type!=='ticket_governance.ai_prompt') throw new Error('AI webhook payload shape failed');
+    r=await request(`http://127.0.0.1:${appPort}/api/ai/query`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt:'Give me RCA for INC5784096'})}); if(r.status!==202||r.body.mode!=='webhook-trigger'||!r.body.requestId) throw new Error('RCA webhook trigger failed');
+    const rcaRequestId=r.body.requestId;
+    if(lastTriggerBody?.incident_number!=='INC5784096'||lastTriggerBody?.request_id!==rcaRequestId||lastTriggerBody?.intent!=='incident_rca') throw new Error('RCA webhook correlation payload failed');
+    r=await request(`http://127.0.0.1:${appPort}/api/moveworks/result`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:'incident_rca',request_id:rcaRequestId,incident_number:'INC5784096',ai_analysis:'Incident-specific RCA text'})}); if(r.status!==200||r.body.request_id!==rcaRequestId||r.body.incident_number!=='INC5784096') throw new Error('RCA callback POST failed');
+    r=await request(`http://127.0.0.1:${appPort}/api/moveworks/result?request_id=${encodeURIComponent(rcaRequestId)}`); if(r.status!==200||r.body.status!=='ready'||r.body.result?.incident_number!=='INC5784096'||r.body.result?.ai_analysis!=='Incident-specific RCA text') throw new Error('RCA callback correlation GET failed');
+    r=await request(`http://127.0.0.1:${appPort}/api/dashboard`); if(r.status!==200||r.body.sla?.breached!==3) throw new Error('RCA callback overwrote governance dashboard');
     r=await request(`http://127.0.0.1:${appPort}/api/tickets/INC1001/assign`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({assignee:'Taylor'})}); if(r.status!==200||!r.body.success) throw new Error('assign proxy failed');
     r=await request(`http://127.0.0.1:${appPort}/api/tickets/INC1001/notify`,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'}); if(r.status!==200||!r.body.success) throw new Error('notify proxy failed');
     r=await request(`http://127.0.0.1:${appPort}/api/reports/eod`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({morning:9})}); if(r.status!==200||!r.body.success) throw new Error('EOD proxy failed');
@@ -57,6 +59,6 @@ function request(url, options={}) {
     const appJs=await fetch(`http://127.0.0.1:${appPort}/app.js`).then(r=>r.text()); if(!appJs.includes('AI Operations Agent')||!appJs.includes('startVoice')||!appJs.includes('renderResults')) throw new Error('MVP agent UI missing');
     console.log('HTTP integration test passed.');
   } finally {
-    child.kill(); mock.close(); try { require('node:fs').unlinkSync(resultStorePath); } catch {} try { require('node:fs').unlinkSync(governanceStorePath); } catch {}
+    child.kill(); mock.close(); try { require('node:fs').unlinkSync(resultStorePath); } catch {}
   }
 })().catch(err=>{console.error(err);process.exitCode=1;});

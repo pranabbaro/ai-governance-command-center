@@ -624,7 +624,3 @@
 .v122-pdf-slide .v12-slide-label{flex:0 0 auto;padding:2px 4px 10px;color:#65d9ff}
 .v122-pdf-frame{width:100%;flex:1 1 auto;min-height:0;border:0;border-radius:6px;background:#fff}
 @media(max-width:900px){.v122-pdf-slide{height:58dvh!important;min-height:430px!important}.v122-pdf-frame{min-height:390px}}
-/* v12.3.1 - breached incident visibility */
-.incident-number-list{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}.incident-pill{border:1px solid #dbe4f2;background:#f7faff;color:#285fc9;border-radius:999px;padding:7px 10px;font-size:11px;font-weight:650;cursor:pointer}.incident-pill:hover{background:#eaf1ff;border-color:#bcd0f5}.incident-more{margin-top:10px}
-
-.metrics.five{grid-template-columns:repeat(5,minmax(0,1fr))}@media(max-width:1250px){.metrics.five{grid-template-columns:repeat(3,1fr)}}@media(max-width:900px){.metrics.five{grid-template-columns:repeat(2,1fr)}}@media(max-width:760px){.metrics.five{grid-template-columns:1fr}}
