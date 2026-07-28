@@ -6,7 +6,6 @@ const { URL } = require('node:url');
 const port = Number(process.env.PORT || 8080);
 const publicDir = path.join(__dirname, 'public');
 const requestTimeoutMs = Number(process.env.UPSTREAM_TIMEOUT_MS || 25000);
-const rcaRequestTimeoutMs = Number(process.env.MOVEWORKS_RCA_TIMEOUT_MS || 120000);
 const resultStorePath = process.env.RESULT_STORE_PATH || (process.env.WEBSITE_SITE_NAME ? '/home/data/ai-governance-latest-result.json' : '/tmp/ai-governance-latest-result.json');
 const rcaStorePath = process.env.RCA_STORE_PATH || (process.env.WEBSITE_SITE_NAME ? '/home/data/ai-governance-latest-rca.json' : '/tmp/ai-governance-latest-rca.json');
 const pendingRcaStorePath = process.env.PENDING_RCA_STORE_PATH || (process.env.WEBSITE_SITE_NAME ? '/home/data/ai-governance-pending-rca.json' : '/tmp/ai-governance-pending-rca.json');
@@ -227,10 +226,10 @@ function upstreamHeaders() {
   return headers;
 }
 
-async function callMoveworks(url, { method = 'GET', body, timeoutMs = requestTimeoutMs } = {}) {
+async function callMoveworks(url, { method = 'GET', body } = {}) {
   if (!url) throw new Error('Moveworks endpoint is not configured');
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const timer = setTimeout(() => controller.abort(), requestTimeoutMs);
   try {
     const response = await fetch(url, {
       method,
@@ -287,14 +286,6 @@ function normalizeSlaBreach(b = {}) {
     if (value && typeof value === 'object') return value.display_value ?? value.value ?? '';
     return value ?? '';
   };
-  const rca = (b.rca && typeof b.rca === 'object') ? b.rca : {};
-  const rcaSummary = display(b.rca_summary || b.rcaSummary || rca.summary || rca.rca_summary || b.ai_rca_summary);
-  const rootCause = display(b.likely_root_cause || b.root_cause || b.rootCause || rca.likely_root_cause || rca.root_cause || rca.rootCause);
-  const contributingFactors = b.contributing_factors || b.contributingFactors || rca.contributing_factors || rca.contributingFactors || [];
-  const correctiveAction = display(b.corrective_action || b.correctiveAction || rca.corrective_action || rca.correctiveAction || b.recommended_action);
-  const preventiveAction = display(b.preventive_action || b.preventiveAction || rca.preventive_action || rca.preventiveAction);
-  const confidence = display(b.confidence || rca.confidence || b.rca_confidence);
-  const evidence = b.evidence || rca.evidence || [];
   const incidentNumber = display(b.incident_number || b.number || b.id || b['task.number'] || b.task);
   const incidentName = display(b.incident_name || b.summary || b.short_description || b.description || b['task.short_description']);
   const team = display(b.assignment_group || b.team || b['task.assignment_group']);
@@ -318,15 +309,7 @@ function normalizeSlaBreach(b = {}) {
     percentage,
     breach: percentage,
     sla: slaName,
-    plannedEndTime,
-    rca_summary: rcaSummary,
-    likely_root_cause: rootCause,
-    contributing_factors: Array.isArray(contributingFactors) ? contributingFactors : (contributingFactors ? [String(contributingFactors)] : []),
-    corrective_action: correctiveAction,
-    preventive_action: preventiveAction,
-    confidence,
-    evidence: Array.isArray(evidence) ? evidence : (evidence ? [String(evidence)] : []),
-    hasRca: Boolean(rcaSummary || rootCause || correctiveAction || preventiveAction)
+    plannedEndTime
   };
 }
 
@@ -447,47 +430,7 @@ async function buildDashboard() {
 
 function pickAiAnswer(payload) {
   const p = unwrap(payload);
-  return p.ai_analysis
-    || p.aiAnalysis
-    || p.answer
-    || p.analysis
-    || p.generated_output
-    || p.generatedOutput
-    || p.text
-    || p.message
-    || p.response
-    || p.ai_sla_analysis?.generated_output
-    || JSON.stringify(p);
-}
-
-function pickIncidentNumber(payload, fallback = null) {
-  const p = unwrap(payload);
-  return p.incident_number || p.incidentNumber || fallback;
-}
-
-function embeddedRcaAnswer(row = {}) {
-  const number = row.incident_number || row.number || row.id || 'Incident';
-  const factors = Array.isArray(row.contributing_factors) ? row.contributing_factors.filter(Boolean) : [];
-  const evidence = Array.isArray(row.evidence) ? row.evidence.filter(Boolean) : [];
-  const parts = [`${number} — SLA Breach RCA`];
-  if (row.rca_summary) parts.push(`RCA Summary\n${row.rca_summary}`);
-  if (row.likely_root_cause) parts.push(`Likely Root Cause\n${row.likely_root_cause}`);
-  if (factors.length) parts.push(`Contributing Factors\n${factors.map(x => `• ${x}`).join('\n')}`);
-  if (evidence.length) parts.push(`Evidence\n${evidence.map(x => `• ${x}`).join('\n')}`);
-  if (row.corrective_action) parts.push(`Corrective Action\n${row.corrective_action}`);
-  if (row.preventive_action) parts.push(`Preventive Action\n${row.preventive_action}`);
-  if (row.confidence) parts.push(`Confidence\n${row.confidence}`);
-  return parts.join('\n\n');
-}
-
-function findEmbeddedRca(incidentNumber) {
-  if (!incidentNumber || !latestMoveworksResult) return null;
-  const dashboard = normalizeDashboardPayload(latestMoveworksResult);
-  const key = String(incidentNumber).trim().toUpperCase();
-  return (dashboard.slaBreaches || []).find(row => {
-    const n = String(row.incident_number || row.number || row.id || '').trim().toUpperCase();
-    return n === key;
-  }) || null;
+  return p.answer || p.analysis || p.generated_output || p.generatedOutput || p.text || p.message || p.response || p.ai_sla_analysis?.generated_output || JSON.stringify(p);
 }
 
 function externalBaseUrl(req) {
@@ -508,10 +451,9 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 200, {
       status: 'ok',
       service: 'ai-governance-command-center',
-      version: '12.9.5',
+      version: '12.3.6',
       moveworksConfigured: Boolean(process.env.MOVEWORKS_DASHBOARD_URL || process.env.MOVEWORKS_AGEING_URL || process.env.MOVEWORKS_SLA_URL || process.env.MOVEWORKS_TRIGGER_URL),
-      aiConfigured: Boolean(process.env.MOVEWORKS_AI_URL || process.env.MOVEWORKS_TRIGGER_URL || process.env.MOVEWORKS_RCA_URL),
-      rcaDirectConfigured: Boolean(process.env.MOVEWORKS_RCA_URL || process.env.MOVEWORKS_AI_URL),
+      aiConfigured: Boolean(process.env.MOVEWORKS_AI_URL || process.env.MOVEWORKS_TRIGGER_URL),
       triggerConfigured: Boolean(process.env.MOVEWORKS_TRIGGER_URL),
       callbackReady: Boolean(latestMoveworksResult),
       callbackEndpoint: '/api/moveworks/result'
@@ -526,8 +468,7 @@ const server = http.createServer(async (req, res) => {
         refreshSeconds: 300,
         integrations: {
           dashboard: Boolean(process.env.MOVEWORKS_DASHBOARD_URL || process.env.MOVEWORKS_AGEING_URL || process.env.MOVEWORKS_SLA_URL || process.env.MOVEWORKS_TRIGGER_URL),
-          ai: Boolean(process.env.MOVEWORKS_AI_URL || process.env.MOVEWORKS_TRIGGER_URL || process.env.MOVEWORKS_RCA_URL),
-          rcaDirect: Boolean(process.env.MOVEWORKS_RCA_URL || process.env.MOVEWORKS_AI_URL),
+          ai: Boolean(process.env.MOVEWORKS_AI_URL || process.env.MOVEWORKS_TRIGGER_URL),
           trigger: Boolean(process.env.MOVEWORKS_TRIGGER_URL),
           assign: Boolean(process.env.MOVEWORKS_ASSIGN_URL),
           notify: Boolean(process.env.MOVEWORKS_NOTIFY_URL),
@@ -688,77 +629,44 @@ const server = http.createServer(async (req, res) => {
       const incidentNumber = extractIncidentNumber(prompt);
       const rcaIntent = isRcaPrompt(prompt);
 
-      // Incident RCA first reads the RCA already embedded in the latest
-      // SLA_Governance dashboard snapshot. This is the preferred path and
-      // requires no second Moveworks workflow, callback or polling.
+      // Incident RCA is asynchronous by design: Moveworks generates the RCA and
+      // POSTs the completed result back to /api/moveworks/result.  Never treat the
+      // initial listener response as the final AI answer, even when MOVEWORKS_AI_URL
+      // is configured.  Otherwise the browser stops polling before the RCA callback.
       if (rcaIntent) {
-        const embedded = findEmbeddedRca(incidentNumber);
-        if (embedded && embedded.hasRca) {
-          return sendJson(res, 200, {
-            answer: embeddedRcaAnswer(embedded),
-            mode: 'embedded-dashboard-rca',
-            incident_number: incidentNumber,
-            incidentNumber,
-            request_id: reqId,
-            requestId: reqId,
-            started_at: startedAt,
-            startedAt
-          });
-        }
-
-        // Optional fallback only when a direct synchronous RCA URL is configured.
-        // In the embedded-RCA design this setting is not required.
-        const rcaUrl = process.env.MOVEWORKS_RCA_URL || process.env.MOVEWORKS_AI_URL;
-        if (!rcaUrl) {
-          const message = embedded
-            ? `I found ${incidentNumber} in the latest SLA governance snapshot, but RCA details are not available in that record. Run SLA_Governance again to refresh the embedded RCA data.`
-            : `I could not find ${incidentNumber} in the latest breached-incident governance snapshot. Run SLA_Governance again and refresh the dashboard.`;
-          return sendJson(res, 200, {
-            answer: message,
-            mode: 'embedded-dashboard-rca-unavailable',
-            incident_number: incidentNumber,
-            incidentNumber,
-            request_id: reqId,
-            requestId: reqId,
-            started_at: startedAt,
-            startedAt
-          });
-        }
-
+        const rcaUrl = process.env.MOVEWORKS_TRIGGER_URL || process.env.MOVEWORKS_AI_URL;
+        if (!rcaUrl) return sendJson(res, 503, { error: 'MOVEWORKS_TRIGGER_URL or MOVEWORKS_AI_URL is not configured' });
+        const callbackUrl = `${externalBaseUrl(req)}/api/moveworks/result`;
+        registerPendingRca(incidentNumber, reqId, startedAt);
         const payload = await callMoveworks(rcaUrl, {
           method: 'POST',
-          timeoutMs: rcaRequestTimeoutMs,
           body: {
+            event_type: 'ticket_governance.incident_rca',
             prompt,
             incident_number: incidentNumber,
+            request_id: reqId,
+            // Compatibility aliases are harmless and make listener mapping easier.
             incidentNumber: incidentNumber,
+            requestId: reqId,
             intent: 'incident_rca',
             user_email: body.user_email || process.env.DEFAULT_NOTIFICATION_EMAIL || undefined,
             context: body.context || 'dashboard',
             source: 'azure_app_service_dashboard',
-            requested_at: startedAt
+            requested_at: startedAt,
+            callback_url: callbackUrl
           }
         });
-
-        const answer = pickAiAnswer(payload);
-        const returnedIncident = pickIncidentNumber(payload, incidentNumber);
-
-        if (!answer || answer === '{}' || answer === 'null') {
-          return sendJson(res, 502, {
-            error: `Moveworks returned no RCA analysis for ${incidentNumber}. The RCA endpoint must return ai_analysis, analysis, generated_output, answer, text or response.`
-          });
-        }
-
-        return sendJson(res, 200, {
-          answer,
-          mode: 'synchronous-rca',
-          incident_number: returnedIncident,
-          incidentNumber: returnedIncident,
-          request_id: reqId,
+        return sendJson(res, 202, {
+          answer: `Moveworks is analyzing ${incidentNumber}. Waiting for the RCA callback…`,
+          mode: 'webhook-trigger',
           requestId: reqId,
-          started_at: startedAt,
+          request_id: reqId,
+          incidentNumber,
+          incident_number: incidentNumber,
           startedAt,
-          raw: process.env.EXPOSE_UPSTREAM_RAW === 'true' ? payload : undefined
+          started_at: startedAt,
+          callbackUrl,
+          moveworks: process.env.EXPOSE_UPSTREAM_RAW === 'true' ? payload : undefined
         });
       }
 
@@ -807,21 +715,9 @@ const server = http.createServer(async (req, res) => {
     const assignMatch = url.pathname.match(/^\/api\/tickets\/([^/]+)\/assign$/);
     if (assignMatch && req.method === 'POST') {
       const body = await readJsonBody(req);
-      const assignee = String(body.assignee || '').trim();
-      const assignmentGroup = String(body.assignment_group || body.assignmentGroup || '').trim();
-      const reason = String(body.reason || '').trim();
-      if (!assignee && !assignmentGroup) return sendJson(res, 400, { error: 'assignment_group or assignee is required' });
+      if (!body.assignee) return sendJson(res, 400, { error: 'assignee is required' });
       if (!process.env.MOVEWORKS_ASSIGN_URL) return sendJson(res, 503, { error: 'MOVEWORKS_ASSIGN_URL is not configured' });
-      const payload = await callMoveworks(process.env.MOVEWORKS_ASSIGN_URL, {
-        method: 'POST',
-        body: {
-          ticket_id: decodeURIComponent(assignMatch[1]),
-          assignment_group: assignmentGroup || undefined,
-          assignee: assignee || undefined,
-          reason: reason || undefined,
-          source: body.source || 'dashboard'
-        }
-      });
+      const payload = await callMoveworks(process.env.MOVEWORKS_ASSIGN_URL, { method: 'POST', body: { ticket_id: decodeURIComponent(assignMatch[1]), assignee: body.assignee } });
       return sendJson(res, 200, { success: true, result: unwrap(payload) });
     }
 

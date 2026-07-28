@@ -5,56 +5,14 @@ const state = {
   lastRefresh: new Date(), morning: 0, updated: 0, closed: 0, pending: 0,
   ageingTotal: 0, incidentCount: 0, ritmCount: 0, taskCount: 0,
   slaAtRisk: 0, slaCritical: 0, slaBreached: 0, slaTotalAttention: 0, slaCompliance: null,
-  slaStatusFilter: 'all', slaGroupFilter: 'all', slaSearch: '',
-  devopsHygiene: 0, devopsNonCompliant: 0, devopsLargestGap: '', devopsTypeFilter:'all', devopsComplianceFilter:'all', devopsSearch:'', devopsView:'hierarchy',
-  tickets: [], slaBreaches: [], slaIncidentCount: 0, devopsItems: [], devopsMockMode:false, trend: [], aiBriefing: null, commandAiAnswer:'', commandAiBusy:false
+  devopsHygiene: 0, devopsNonCompliant: 0, devopsLargestGap: '',
+  tickets: [], slaBreaches: [], slaIncidentCount: 0, devopsItems: [], trend: [], aiBriefing: null
 };
 
 const nav = [
-  ['agent','AI Operations Agent','✦'], ['command','Command Center','⌂'], ['sla','Incident SLA Intelligence','✓'],
-  ['devops','DevOps Governance','▣'], ['ai','Ask Governance AI','◈'], ['presentation','Presentation Mode','▶'],
-  ['projectpilot','Project Management Lifecycle','PM']
+  ['agent','AI Operations Agent','✦'], ['command','Command Center','⌂'], ['ageing','Ageing Tickets','◷'], ['sla','SLA Intelligence','✓'],
+  ['devops','DevOps Governance','▣'], ['ai','Ask Governance AI','◈'], ['presentation','Presentation Mode','▶']
 ];
-
-
-function buildMockDevopsItems() {
-  return [
-    {id:'EPIC-1001',type:'Epic',title:'Employee Service Portal Modernization',owner:'Aarav Mehta',sprint:'FY27-Q1',tags:['EmployeePortal','MVP'],score:100,missing:[],parent:'',status:'Active'},
-    {id:'FEAT-1101',type:'Feature',title:'Manager Approval Workflow',owner:'Priya Sharma',sprint:'Sprint 18',tags:['Approval','MVP'],score:80,missing:['Target Date'],parent:'EPIC-1001',status:'Active'},
-    {id:'US-1201',type:'User Story',title:'Allow managers to approve employee requests',owner:'Neha Rao',sprint:'Sprint 18',tags:['Approval','Frontend'],score:65,missing:['Acceptance Criteria'],parent:'FEAT-1101',status:'Active'},
-    {id:'TASK-1301',type:'Task',title:'Design approval screen',owner:'Rohit Kumar',sprint:'',tags:['UX'],score:70,missing:['Sprint'],parent:'US-1201',status:'New'},
-    {id:'TASK-1302',type:'Task',title:'Develop approval API',owner:'Arjun Singh',sprint:'Sprint 18',tags:[],score:75,missing:['Tags'],parent:'US-1201',status:'In Progress'},
-    {id:'TASK-1303',type:'Task',title:'Unit testing for approval workflow',owner:'Meera Iyer',sprint:'Sprint 18',tags:['Testing'],score:100,missing:[],parent:'US-1201',status:'Active'},
-    {id:'FEAT-1102',type:'Feature',title:'Employee Request Tracking',owner:'Kabir Verma',sprint:'Sprint 19',tags:['Tracking'],score:100,missing:[],parent:'EPIC-1001',status:'Active'},
-    {id:'US-1202',type:'User Story',title:'Allow employees to track request status',owner:'Ananya Das',sprint:'Sprint 19',tags:['Tracking'],score:85,missing:['Acceptance Criteria'],parent:'FEAT-1102',status:'Active'},
-    {id:'TASK-1304',type:'Task',title:'Build request status page',owner:'Vikram Nair',sprint:'Sprint 19',tags:['Frontend'],score:100,missing:[],parent:'US-1202',status:'New'},
-    {id:'TASK-1305',type:'Task',title:'Integrate request tracking API',owner:'Sana Khan',sprint:'Sprint 19',tags:['API'],score:100,missing:[],parent:'US-1202',status:'New'},
-    {id:'EPIC-1002',type:'Epic',title:'Cloud Self-Service Platform',owner:'',sprint:'FY27-Q1',tags:['Cloud','SelfService'],score:75,missing:['Business Owner'],parent:'',status:'Active'},
-    {id:'FEAT-2101',type:'Feature',title:'Azure VM Provisioning',owner:'Dev Patel',sprint:'Sprint 20',tags:['Azure','VM'],score:100,missing:[],parent:'EPIC-1002',status:'Active'},
-    {id:'US-2201',type:'User Story',title:'Request Azure VM from self-service portal',owner:'Ishita Sen',sprint:'Sprint 20',tags:['Azure','VM'],score:70,missing:['Description'],parent:'FEAT-2101',status:'Active'},
-    {id:'TASK-2301',type:'Task',title:'Create Terraform VM module',owner:'Aditya Joshi',sprint:'Sprint 20',tags:['Terraform'],score:100,missing:[],parent:'US-2201',status:'In Progress'},
-    {id:'TASK-2302',type:'Task',title:'Configure VM approval workflow',owner:'',sprint:'Sprint 20',tags:['Approval'],score:70,missing:['Assignee'],parent:'US-2201',status:'New'},
-    {id:'FEAT-2102',type:'Feature',title:'Azure Storage Provisioning',owner:'Nisha Gupta',sprint:'Sprint 20',tags:['Azure','Storage'],score:100,missing:[],parent:'EPIC-1002',status:'Active'},
-    {id:'US-2202',type:'User Story',title:'Request Storage Account from portal',owner:'Karan Malhotra',sprint:'Sprint 20',tags:['Azure','Storage'],score:100,missing:[],parent:'FEAT-2102',status:'Active'},
-    {id:'TASK-2303',type:'Task',title:'Create storage deployment template',owner:'Pooja Menon',sprint:'Sprint 20',tags:['Bicep'],score:100,missing:[],parent:'US-2202',status:'New'}
-  ];
-}
-
-function devopsMetrics(items=[]) {
-  const count=items.length||1;
-  const hygiene=Math.round(items.reduce((sum,x)=>sum+(Number(x.score)||0),0)/count);
-  const nonCompliant=items.filter(x=>(x.missing||[]).length).length;
-  const gaps={};
-  items.forEach(x=>(x.missing||[]).forEach(g=>gaps[g]=(gaps[g]||0)+1));
-  const largestGap=Object.entries(gaps).sort((a,b)=>b[1]-a[1])[0]?.[0]||'None';
-  return {hygiene,nonCompliant,largestGap};
-}
-
-function devopsTypeCounts(items=[]) {
-  const counts={Epic:0,Feature:0,'User Story':0,Task:0};
-  items.forEach(x=>{if(Object.prototype.hasOwnProperty.call(counts,x.type)) counts[x.type]++;});
-  return counts;
-}
 
 const app = document.getElementById('app');
 const escapeHtml = (s='') => String(s).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
@@ -67,56 +25,6 @@ function button(label, action, arg='', primary=false) { return `<button class="b
 function breachedIncidentNumbers() {
   const values=(state.slaBreaches||[]).map(x=>String(x.incident_number||x.id||x.number||'').trim()).filter(Boolean);
   return [...new Set(values)];
-}
-
-function incidentNumberOf(x={}) {
-  return String(x.incident_number||x.id||x.number||'').trim();
-}
-function findSlaIncident(number='') {
-  const key=String(number||'').trim().toUpperCase();
-  return (state.slaBreaches||[]).find(x=>incidentNumberOf(x).toUpperCase()===key)||null;
-}
-function hasIncidentRca(x={}) {
-  return Boolean(x.hasRca||x.rca_summary||x.likely_root_cause||x.corrective_action||x.preventive_action);
-}
-function rcaTextForIncident(x={}) {
-  if(!x) return '';
-  const n=incidentNumberOf(x)||'Incident';
-  const factors=Array.isArray(x.contributing_factors)?x.contributing_factors.filter(Boolean):[];
-  const evidence=Array.isArray(x.evidence)?x.evidence.filter(Boolean):[];
-  const parts=[`**${n} — SLA Breach RCA**`];
-  if(x.rca_summary) parts.push(`**RCA Summary**\n${x.rca_summary}`);
-  if(x.likely_root_cause) parts.push(`**Likely Root Cause**\n${x.likely_root_cause}`);
-  if(factors.length) parts.push(`**Contributing Factors**\n${factors.map(v=>`• ${v}`).join('\n')}`);
-  if(evidence.length) parts.push(`**Evidence**\n${evidence.map(v=>`• ${v}`).join('\n')}`);
-  if(x.corrective_action) parts.push(`**Corrective Action**\n${x.corrective_action}`);
-  if(x.preventive_action) parts.push(`**Preventive Action**\n${x.preventive_action}`);
-  if(x.confidence) parts.push(`**Confidence**\n${x.confidence}`);
-  return parts.join('\n\n');
-}
-function openRcaModal(number='') {
-  const x=findSlaIncident(number);
-  if(!x) return toast(`Incident ${number} is not in the latest governance snapshot.`);
-  const existing=document.getElementById('rcaModal'); if(existing) existing.remove();
-  const has=hasIncidentRca(x);
-  const factors=Array.isArray(x.contributing_factors)?x.contributing_factors.filter(Boolean):[];
-  const evidence=Array.isArray(x.evidence)?x.evidence.filter(Boolean):[];
-  const overlay=document.createElement('div');
-  overlay.className='modalback'; overlay.id='rcaModal';
-  overlay.innerHTML=`<div class="modal rca-modal">
-    <div class="rca-modal-head"><div><span class="ai-kicker">SLA BREACH RCA</span><h2>${escapeHtml(incidentNumberOf(x))}</h2><p>${escapeHtml(x.summary||x.description||'Breached SLA record')}</p></div>${badge(x.confidence||'RCA','info')}</div>
-    <div class="rca-meta-row"><span>Priority <strong>${escapeHtml(x.priority||'—')}</strong></span><span>State <strong>${escapeHtml(x.state||x.status||'—')}</strong></span><span>Team <strong>${escapeHtml(x.team||'—')}</strong></span></div>
-    ${has?`
-      ${x.rca_summary?`<section><h3>RCA Summary</h3><p>${escapeHtml(x.rca_summary)}</p></section>`:''}
-      ${x.likely_root_cause?`<section><h3>Likely Root Cause</h3><p>${escapeHtml(x.likely_root_cause)}</p></section>`:''}
-      ${factors.length?`<section><h3>Contributing Factors</h3><ul>${factors.map(v=>`<li>${escapeHtml(v)}</li>`).join('')}</ul></section>`:''}
-      ${evidence.length?`<section><h3>Evidence</h3><ul>${evidence.map(v=>`<li>${escapeHtml(v)}</li>`).join('')}</ul></section>`:''}
-      ${x.corrective_action?`<section><h3>Corrective Action</h3><p>${escapeHtml(x.corrective_action)}</p></section>`:''}
-      ${x.preventive_action?`<section><h3>Preventive Action</h3><p>${escapeHtml(x.preventive_action)}</p></section>`:''}
-    `:`<div class="rca-unavailable"><strong>RCA not included in the latest governance callback.</strong><span>Update SLA_Governance so each breached_incidents record contains compact RCA fields.</span></div>`}
-    <div class="modalactions"><button class="btn" data-action="closeRcaModal">Close</button>${has?`<button class="btn primary" data-action="readRca" data-arg="${escapeHtml(incidentNumberOf(x))}">🔊 Read RCA</button>`:''}</div>
-  </div>`;
-  document.body.appendChild(overlay);
 }
 function toast(message) { const el=document.getElementById('toast'); el.textContent=message; el.hidden=false; clearTimeout(window.__toastTimer); window.__toastTimer=setTimeout(()=>{el.hidden=true;},3000); }
 function metric(label, value, sub, tone='blue') { return `<div class="metric tone-${tone}"><div><div class="metric-label">${escapeHtml(label)}</div><div class="metric-value">${escapeHtml(value)}</div><div class="metric-sub">${escapeHtml(sub)}</div></div></div>`; }
@@ -143,15 +51,14 @@ function liveBanner() {
 
 function layout(content) {
   const title = state.page==='results' ? 'AI Operations Result' : (nav.find(x => x[0] === state.page)?.[1] || 'Command Center');
-  const isProjectLifecycle = state.page==='projectpilot';
   return `<div class="shell"><aside class="sidebar">
     <div class="brand"><div class="brandmark">✦</div><div><strong>AI Governance</strong><span>Command Center</span></div></div>
     <div class="hackathon-badge">Moveworks Hackathon</div>
     <nav>${nav.map(([key,label,icon])=>`<button class="navbtn ${state.page===key?'active':''}" data-nav="${key}"><span>${icon}</span>${label}</button>`).join('')}</nav>
     <div class="demo-note">${badge(state.live?'Live':'Integration','success')}<p>Moveworks is the AI and orchestration layer. ServiceNow and Azure DevOps remain systems of record.</p></div>
-  </aside><main class="main ${isProjectLifecycle?'project-lifecycle-main':''}">
-    ${isProjectLifecycle?'':`<header class="topbar"><div><h1>${escapeHtml(title)}</h1><p>ServiceNow + Azure DevOps + Moveworks Agent Studio</p></div><div class="refresh-group"><button class="btn" data-action="refreshData">Refresh live data</button><div class="refresh">Auto refresh: 5 min</div></div></header>${liveBanner()}`}
-    ${content}
+  </aside><main class="main">
+    <header class="topbar"><div><h1>${escapeHtml(title)}</h1><p>ServiceNow + Azure DevOps + Moveworks Agent Studio</p></div><div class="refresh-group"><button class="btn" data-action="refreshData">Refresh live data</button><div class="refresh">Auto refresh: 5 min</div></div></header>
+    ${liveBanner()}${content}
   </main></div>`;
 }
 
@@ -168,6 +75,7 @@ function ticketTable(rows) {
 }
 
 function renderCommand() {
+  const highest=[...state.tickets].sort((a,b)=>(b.risk||0)-(a.risk||0)).slice(0,3);
   const trend = state.trend.length ? state.trend.map((x,i)=>`<span>${['Mon','Tue','Wed','Thu','Fri'][i]||`W${i+1}`} ${x}%</span>`).join('') : '<span>No trend snapshot yet</span>';
   return layout(`<section class="metrics four">
     ${metric('Ageing Tickets',state.ageingTotal,'>15 days and stale >5 days','orange')}
@@ -175,27 +83,20 @@ function renderCommand() {
     ${metric('DevOps Hygiene',state.devopsHygiene?state.devopsHygiene+'%':'—',state.devopsHygiene?'Live governance score':'DevOps endpoint not yet connected','purple')}
     ${metric('Action Rate',actionRate()+'%',state.morning?`${state.updated+state.closed} of ${state.morning} actioned today`:'Awaiting morning/EOD snapshot','green')}
   </section>
-  <section class="card"><div class="cardhead"><div><h2>Today's Governance Effectiveness</h2><p>Morning ageing backlog versus end-of-day outcome</p></div>${badge(actionRate()+'% Actioned','success')}</div>
+  <section class="twocol"><div class="card"><div class="cardhead"><div><h2>Today's Governance Effectiveness</h2><p>Morning ageing backlog versus end-of-day outcome</p></div>${badge(actionRate()+'% Actioned','success')}</div>
     <div class="effect"><div><span>Morning</span><strong>${state.morning}</strong></div><div><span>Updated</span><strong>${state.updated}</strong></div><div><span>Closed</span><strong>${state.closed}</strong></div><div><span>Pending</span><strong>${state.pending}</strong></div></div>
     <div class="rate"><span>Action Rate</span><strong>${actionRate()}%</strong></div>${progress(actionRate())}
-    <div class="rate secondary"><span>Backlog Reduction</span><strong>${backlogReduction()}%</strong></div><div class="trend">${trend}</div>${button('Send EOD Report','sendEod','',true)}
-  </section>
-  <section class="card"><div class="cardhead"><div><h2>Breached Incidents</h2><p>Unique incident numbers returned by the latest ServiceNow SLA governance run</p></div>${badge(`${state.slaIncidentCount} incidents`,'danger')}</div>
-      ${state.slaIncidentCount?`<div class="chips">${breachedIncidentNumbers().slice(0,20).map(n=>`<button data-action="aiPrompt" data-arg="Give me RCA for ${escapeHtml(n)}">${escapeHtml(n)}</button>`).join('')}</div>${state.slaIncidentCount>20?`<div class="muted">Showing first 20 of ${state.slaIncidentCount} unique breached incidents. Open Incident SLA Intelligence for the full returned list.</div>`:''}`:'<div class="empty">No breached incident numbers returned yet. Run SLA_Governance to refresh the live incident list.</div>'}
-  </section>
-  <section class="card ai-card-shell">${aiInsightCard(true)}</section>`);
-}
-
-function renderProjectPilot() {
-  return layout(`<section class="project-embed-shell project-embed-clean">
-    <iframe class="project-embed-frame" src="https://projectpilot-ai-mvp-bhf0apataxa5cphp.centralindia-01.azurewebsites.net/#dashboard" title="Project Management Lifecycle"></iframe>
-    <div class="project-embed-footer">
-      <div class="project-embed-actions-bottom">
-        <button class="btn" data-action="nav" data-arg="command">← Back to Command Center</button>
-        <button class="btn primary" data-action="openProjectPilotExternal">Open in new tab ↗</button>
-      </div>
-    </div>
-  </section>`);
+    <div class="rate secondary"><span>Backlog Reduction</span><strong>${backlogReduction()}%</strong></div><div class="trend">${trend}</div>${button('Send EOD Report','sendEod','',true)}</div>
+    <div class="card"><h2>AI Governance Assistant</h2><p>Ask Moveworks about ageing tickets, SLA risk, RCA or DevOps hygiene.</p>
+      <div class="mini-ai"><input id="quickAiInput" placeholder="Why are our SLAs breaching?">${button('Ask AI','quickAi','',true)}</div><div class="connection-row">${button('Test Moveworks Connection','testMoveworks')}</div>
+      <div class="brief">⚠ <span><strong>${state.slaCritical}</strong> critical SLA items need attention.</span></div>
+      <div class="brief">◷ <span><strong>${state.pending}</strong> ageing tickets remain pending at EOD.</span></div>
+    </div></section>
+    <section class="card"><div class="cardhead"><div><h2>Breached Incidents</h2><p>Unique incident numbers returned by the latest ServiceNow SLA governance run</p></div>${badge(`${state.slaIncidentCount} incidents`,'danger')}</div>
+      ${state.slaIncidentCount?`<div class="chips">${breachedIncidentNumbers().slice(0,20).map(n=>`<button data-action="aiPrompt" data-arg="Give me RCA for ${escapeHtml(n)}">${escapeHtml(n)}</button>`).join('')}</div>${state.slaIncidentCount>20?`<div class="muted">Showing first 20 of ${state.slaIncidentCount} unique breached incidents. Open SLA Intelligence for the full returned list.</div>`:''}`:'<div class="empty">No breached incident numbers returned yet. Run SLA_Governance to refresh the live incident list.</div>'}
+    </section>
+    <section class="card ai-card-shell">${aiInsightCard(true)}</section>
+    <section class="card"><div class="cardhead"><div><h2>Highest Risk Ageing Tickets</h2><p>Prioritized from live governance data</p></div>${button('View all','nav','ageing')}</div>${ticketTable(highest)}</section>`);
 }
 
 function renderAgeing() {
@@ -205,146 +106,13 @@ function renderAgeing() {
 }
 
 function renderSla() {
-  const allRows=Array.isArray(state.slaBreaches)?state.slaBreaches:[];
-  const groups=[...new Set(allRows.map(x=>String(x.team||x.assignment_group||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
-  const statuses=[...new Set(allRows.map(x=>String(x.state||x.status||'Breached').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
-  const search=String(state.slaSearch||'').trim().toLowerCase();
-  const rows=allRows.filter(x=>{
-    const status=String(x.state||x.status||'Breached').trim();
-    const group=String(x.team||x.assignment_group||'').trim();
-    const matchesStatus=state.slaStatusFilter==='all'||status.toLowerCase()===String(state.slaStatusFilter).toLowerCase();
-    const matchesGroup=state.slaGroupFilter==='all'||group===state.slaGroupFilter;
-    const hay=[incidentNumberOf(x),x.incident_name,x.summary,x.description,group,x.assignee,x.assigned_to].join(' ').toLowerCase();
-    const matchesSearch=!search||hay.includes(search);
-    return matchesStatus&&matchesGroup&&matchesSearch;
-  });
-
-  const cards = rows.length ? rows.map(x=>{
-    const number=incidentNumberOf(x);
-    const hasRca=hasIncidentRca(x);
-    return `<div class="slacard">
-      <div class="cardhead"><strong>${escapeHtml(number||'SLA')}</strong>${badge(x.team||x.assignment_group||'ServiceNow')}</div>
-      <p>${escapeHtml(x.incident_name||x.summary||x.description||'Breached SLA record')}</p>
-      <div class="slameta">
-        <span>Priority <strong>${escapeHtml(x.priority||'—')}</strong></span>
-        <span>Status <strong>${escapeHtml(x.state||x.status||'Breached')}</strong></span>
-        <span>Assigned To <strong>${escapeHtml(x.assignee||x.assigned_to||'Unassigned')}</strong></span>
-        <span>AI RCA <strong>${hasRca?'Ready':'Not included yet'}</strong></span>
-        <span>Confidence <strong>${escapeHtml(x.confidence||'—')}</strong></span>
-      </div>
-      ${hasRca&&x.rca_summary?`<div class="rca-preview"><strong>Likely RCA</strong><p>${escapeHtml(x.rca_summary)}</p></div>`:''}
-      <div class="actions">
-        ${button(hasRca?'View RCA':'RCA details','viewRca',number,true)}
-        ${button('Reassign','reassignSla',number)}
-        ${button('Ask AI','aiPrompt',`Analyze SLA breach ${number}`)}
-      </div>
-    </div>`;
-  }).join('') : '<div class="empty">No breached incidents match the selected filters.</div>';
-
-  return layout(`<section class="metrics four">${metric('SLA At Risk',state.slaAtRisk,'≥75% consumed','orange')}${metric('Critical SLA',state.slaCritical,'≥90% consumed','red')}${metric('SLA Breached',state.slaBreached,'Requires investigation','red')}${metric('Total SLA Attention',state.slaTotalAttention,'At risk + breached','purple')}</section>
-    <section class="card ai-card-shell">${aiInsightCard(false)}</section>
-    <section class="card">
-      <div class="cardhead sla-filter-head"><div><h2>Incident SLA Breach Intelligence</h2><p>${rows.length} of ${allRows.length} breached incidents shown</p></div><button class="btn" data-action="clearSlaFilters">Clear filters</button></div>
-      <div class="sla-filterbar">
-        <label><span>Status</span><select id="slaStatusFilter" class="search"><option value="all">All statuses</option>${statuses.map(v=>`<option value="${escapeHtml(v)}" ${state.slaStatusFilter===v?'selected':''}>${escapeHtml(v)}</option>`).join('')}</select></label>
-        <label><span>Assignment group</span><select id="slaGroupFilter" class="search"><option value="all">All groups</option>${groups.map(v=>`<option value="${escapeHtml(v)}" ${state.slaGroupFilter===v?'selected':''}>${escapeHtml(v)}</option>`).join('')}</select></label>
-        <label class="sla-search-field"><span>Incident / owner search</span><input id="slaSearch" class="search" placeholder="INC5784096, group or assignee" value="${escapeHtml(state.slaSearch)}"></label>
-      </div>
-      <div class="slagrid">${cards}</div>
-    </section>`);
-}
-
-
-function devopsHierarchyHtml(items=[]) {
-  const byParent=new Map();
-  items.forEach(item=>{
-    const parent=String(item.parent||'').trim();
-    if(!byParent.has(parent)) byParent.set(parent,[]);
-    byParent.get(parent).push(item);
-  });
-  const order={'Epic':0,'Feature':1,'User Story':2,'Task':3};
-  for(const arr of byParent.values()) arr.sort((a,b)=>(order[a.type]??9)-(order[b.type]??9)||String(a.id).localeCompare(String(b.id)));
-
-  const renderNode=(item,depth=0)=>{
-    const id=item.id||item.number;
-    const children=byParent.get(String(id))||[];
-    const missing=(item.missing||[]);
-    const compliant=missing.length===0;
-    return `<div class="devops-tree-node depth-${Math.min(depth,3)}">
-      <div class="devops-tree-row">
-        <div class="devops-tree-main">
-          <span class="tree-type ${String(item.type||'').toLowerCase().replace(/\s+/g,'-')}">${escapeHtml(item.type||'Work Item')}</span>
-          <div><strong>${escapeHtml(id)}</strong><div class="tree-title">${escapeHtml(item.title||'')}</div></div>
-        </div>
-        <div class="devops-tree-meta">
-          <span>Owner <strong>${escapeHtml(item.owner||'Unassigned')}</strong></span>
-          <span>Sprint <strong>${escapeHtml(item.sprint||'Not set')}</strong></span>
-          <span>Score <strong>${Number(item.score)||0}%</strong></span>
-        </div>
-        <div class="devops-tree-status">${compliant?badge('Compliant','success'):missing.map(m=>badge(m,'danger')).join(' ')}</div>
-        <div class="actions">${button('Reassign','reassignDevops',id)}${button('Ask AI','aiPrompt',`Analyze DevOps work item ${id}`,true)}</div>
-      </div>
-      ${children.length?`<div class="devops-tree-children">${children.map(child=>renderNode(child,depth+1)).join('')}</div>`:''}
-    </div>`;
-  };
-
-  const roots=(byParent.get('')||[]).filter(x=>x.type==='Epic');
-  const orphanRoots=(byParent.get('')||[]).filter(x=>x.type!=='Epic');
-  return [...roots,...orphanRoots].map(x=>renderNode(x,0)).join('');
+  const cards = state.slaBreaches.length ? state.slaBreaches.map(x=>`<div class="slacard"><div class="cardhead"><strong>${escapeHtml(x.incident_number||x.id||x.number||'SLA')}</strong>${badge(x.team||x.assignment_group||'ServiceNow')}</div><p>${escapeHtml(x.incident_name||x.summary||x.description||'Breached SLA record')}</p><div class="slameta"><span>Breach <strong>${escapeHtml(x.breach||x.percentage||'')}</strong></span><span>AI RCA <strong>${escapeHtml(x.cause||'Available via Ask AI')}</strong></span><span>Confidence <strong>${escapeHtml(x.confidence||'')}</strong></span></div>${button('Investigate with AI','aiPrompt',`Analyze SLA breach ${x.id||x.number||''}`,true)}</div>`).join('') : '<div class="empty">No detailed breach records returned by the dashboard endpoint.</div>';
+  return layout(`<section class="metrics four">${metric('SLA At Risk',state.slaAtRisk,'≥75% consumed','orange')}${metric('Critical SLA',state.slaCritical,'≥90% consumed','red')}${metric('SLA Breached',state.slaBreached,'Requires investigation','red')}${metric('Total SLA Attention',state.slaTotalAttention,'At risk + breached','purple')}</section><section class="card ai-card-shell">${aiInsightCard(false)}</section><section class="card"><h2>SLA Breach Intelligence</h2><div class="slagrid">${cards}</div></section>`);
 }
 
 function renderDevops() {
-  const all=state.devopsItems||[];
-  const q=String(state.devopsSearch||'').trim().toLowerCase();
-  const filtered=all.filter(x=>{
-    const typeOk=state.devopsTypeFilter==='all'||x.type===state.devopsTypeFilter;
-    const complianceOk=state.devopsComplianceFilter==='all'||(state.devopsComplianceFilter==='compliant'?(x.missing||[]).length===0:(x.missing||[]).length>0);
-    const hay=[x.id,x.number,x.type,x.title,x.owner,x.sprint,(x.tags||[]).join(' '),x.parent].join(' ').toLowerCase();
-    return typeOk&&complianceOk&&(!q||hay.includes(q));
-  });
-  const counts=devopsTypeCounts(all);
-  const filterActive=state.devopsTypeFilter!=='all'||state.devopsComplianceFilter!=='all'||Boolean(q);
-
-  const listRows=filtered.length?`<div class="tablewrap"><table><thead><tr><th>Work Item</th><th>Type</th><th>Owner</th><th>Sprint</th><th>Missing</th><th>Score</th><th>Action</th></tr></thead><tbody>${filtered.map(x=>`<tr>
-    <td><strong>${escapeHtml(x.id||x.number)}</strong><div class="muted">${escapeHtml(x.title||'')}</div><div class="muted">Parent: ${escapeHtml(x.parent||'—')}</div></td>
-    <td>${escapeHtml(x.type||'')}</td>
-    <td>${escapeHtml(x.owner||'Unassigned')}</td>
-    <td>${escapeHtml(x.sprint||'Not set')}</td>
-    <td>${(x.missing||[]).length?(x.missing||[]).map(m=>badge(m,'danger')).join(' '):badge('Compliant','success')}</td>
-    <td><strong>${Number(x.score)||0}%</strong>${progress(x.score)}</td>
-    <td><div class="actions">${button('Reassign','reassignDevops',x.id||x.number)}${button('Ask AI','aiPrompt',`Analyze DevOps work item ${x.id||x.number}`,true)}</div></td>
-  </tr>`).join('')}</tbody></table></div>`:'<div class="empty">No DevOps work items match the selected filters.</div>';
-
-  const hierarchy=all.length?`<div class="devops-hierarchy">
-    <div class="hierarchy-legend"><span>EPIC</span><b>→</b><span>FEATURE</span><b>→</b><span>USER STORY</span><b>→</b><span>TASK</span></div>
-    ${devopsHierarchyHtml(all)}
-  </div>`:'<div class="empty">No DevOps hierarchy data available.</div>';
-
-  const sourceNote=state.devopsMockMode?'<span class="demo-pill">MVP MOCK DATA</span>':'<span class="live-pill">LIVE DATA</span>';
-  return layout(`<section class="metrics four">
-    ${metric('Overall Hygiene',state.devopsHygiene+'%','DevOps metadata quality','green')}
-    ${metric('Epics',counts.Epic,'Portfolio initiatives','purple')}
-    ${metric('Features',counts.Feature,'Capabilities','blue')}
-    ${metric('User Stories / Tasks',counts['User Story']+' / '+counts.Task,'Delivery items','orange')}
-  </section>
-  <section class="card">
-    <div class="cardhead"><div><h2>Azure DevOps Governance ${sourceNote}</h2><p>${state.devopsNonCompliant} non-compliant work items · Largest gap: ${escapeHtml(state.devopsLargestGap||'—')}</p></div></div>
-
-    <div class="devops-view-switch">
-      <button class="btn ${state.devopsView!=='list'?'primary':''}" data-action="devopsHierarchyView">Hierarchy</button>
-      <button class="btn ${state.devopsView==='list'?'primary':''}" data-action="devopsListView">Governance List</button>
-    </div>
-
-    ${state.devopsView==='list'?`
-      <div class="devops-filterbar">
-        <label><span>Work item type</span><select id="devopsTypeFilter" class="search"><option value="all">All types</option>${['Epic','Feature','User Story','Task'].map(v=>`<option value="${v}" ${state.devopsTypeFilter===v?'selected':''}>${v}</option>`).join('')}</select></label>
-        <label><span>Compliance</span><select id="devopsComplianceFilter" class="search"><option value="all">All</option><option value="compliant" ${state.devopsComplianceFilter==='compliant'?'selected':''}>Compliant</option><option value="noncompliant" ${state.devopsComplianceFilter==='noncompliant'?'selected':''}>Non-compliant</option></select></label>
-        <label><span>Search</span><input id="devopsSearch" class="search" placeholder="EPIC, story, owner, sprint..." value="${escapeHtml(state.devopsSearch)}"></label>
-        <button class="btn" data-action="clearDevopsFilters">Clear filters</button>
-      </div>
-      ${listRows}
-    `:hierarchy}
-  </section>`);
+  const rows=state.devopsItems.length?`<div class="tablewrap"><table><thead><tr><th>Work Item</th><th>Type</th><th>Owner</th><th>Missing</th><th>Score</th><th>Action</th></tr></thead><tbody>${state.devopsItems.map(x=>`<tr><td><strong>${escapeHtml(x.id||x.number)}</strong><div class="muted">${escapeHtml(x.title||'')}</div></td><td>${escapeHtml(x.type||'')}</td><td>${escapeHtml(x.owner||'')}</td><td>${(x.missing||[]).map(m=>badge(m,'danger')).join(' ')}</td><td><strong>${Number(x.score)||0}%</strong>${progress(x.score)}</td><td>${button('Ask AI','aiPrompt',`Analyze DevOps work item ${x.id||x.number}`,true)}</td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">Connect MOVEWORKS_DEVOPS_URL to replace this with real Azure DevOps governance data.</div>';
+  return layout(`<section class="metrics three">${metric('Overall Hygiene',state.devopsHygiene?state.devopsHygiene+'%':'—','Live DevOps governance','green')}${metric('Non-Compliant',state.devopsNonCompliant,'Open work items','orange')}${metric('Largest Gap',state.devopsLargestGap||'—','Metadata hygiene','purple')}</section><section class="card"><h2>Azure DevOps Governance</h2>${rows}</section>`);
 }
 
 function renderAi(answer='') {
@@ -377,33 +145,6 @@ function localOperationalResult(prompt) {
   const wantsShow=/\b(show|list|display|give me|find|get)\b/.test(q);
   const mentionsBreach=/\b(breach|breached|breaches)\b/.test(q);
   const mentionsSla=/\bsla\b/.test(q);
-  const incidentMatch=clean.match(/\bINC\d+\b/i);
-  const asksIncidentRca=Boolean(
-    incidentMatch && (
-      /\b(rca|root cause|root-cause|cause|reason)\b/i.test(clean)
-      || (/\bwhy\b/i.test(clean) && /\b(sla|breach|breached|breaches|breaching)\b/i.test(clean))
-      || /\b(analy[sz]e|investigate|explain)\b/i.test(clean)
-      || /\b(sla|breach|breached|breaches|breaching)\b/i.test(clean)
-    )
-  );
-  if(asksIncidentRca) {
-    const row=findSlaIncident(incidentMatch[0]);
-    if(row && hasIncidentRca(row)) {
-      return {kind:'incident-rca', rows:[row], answer:rcaTextForIncident(row)};
-    }
-    if(row) {
-      return {
-        kind:'incident-rca-unavailable',
-        rows:[row],
-        answer:`I found **${incidentNumberOf(row)}** in the latest SLA governance snapshot, but RCA details were not included in that incident record. Run SLA_Governance again to refresh the embedded RCA data.`
-      };
-    }
-    return {
-      kind:'incident-rca-unavailable',
-      rows:[],
-      answer:`I could not find **${incidentMatch[0].toUpperCase()}** in the latest breached-incident governance snapshot. Refresh SLA_Governance and try again.`
-    };
-  }
   if(wantsShow && mentionsBreach && (mentionsSla || /\b(incident|incidents|ticket|tickets)\b/.test(q))) {
     const rows=agentTicketRows('breached');
     const preview=rows.slice(0,5).map(x=>x.id).filter(Boolean).join(', ');
@@ -418,14 +159,6 @@ function localOperationalResult(prompt) {
   }
   if(wantsShow && /\b(ageing|aging)\b/.test(q)) {
     return {kind:'ageing-list', rows:state.tickets||[], answer:`Found **${state.ageingTotal} ageing tickets** in the latest live governance result.${state.tickets.length?' Ticket details are shown below.':' The current callback contains the count, but not individual ticket records yet.'}`};
-  }
-  if(/\b(devops|epic|feature|user story|task)\b/.test(q)) {
-    const items=state.devopsItems||[];
-    if(/\b(non compliant|noncompliant|missing|gap|gaps)\b/.test(q)){
-      const bad=items.filter(x=>(x.missing||[]).length);
-      return {kind:'devops-list',rows:bad,answer:`The DevOps MVP has **${bad.length} non-compliant work items**. The largest current metadata gap is **${state.devopsLargestGap||'—'}**.`};
-    }
-    if(/\b(hygiene|score)\b/.test(q)) return {kind:'kpi',answer:`The current DevOps hygiene score is **${state.devopsHygiene}%** across ${items.length} work items.`};
   }
   return null;
 }
@@ -549,7 +282,83 @@ I can also expand across the Azure DevOps lifecycle, including Epics, Features, 
 
 My capabilities operate within defined enterprise boundaries. What I can access, analyze, recommend or execute is governed by integrations, permissions, security policies, approval workflows and organizational controls.`,
 
-  purpose: `My purpose is to become a conversational governance and operations layer across enterprise systems. Instead of making users move between multiple portals to find information, analyze issues and perform routine actions, I aim to bring those workflows into one governed voice-and-chat experience — while maintaining security, auditability and human oversight.`
+  purpose: `My purpose is to become a conversational governance and operations layer across enterprise systems. Instead of making users move between multiple portals to find information, analyze issues and perform routine actions, I aim to bring those workflows into one governed voice-and-chat experience — while maintaining security, auditability and human oversight.`,
+
+  danielStory: `Oh, Daniel? Let me tell you the legend of Daniel and the impossible projects.
+
+The Legend of Daniel and the Impossible Projects
+
+Once upon a time, in a land full of meetings, deadlines, cloud migrations, and endless PowerPoint slides, there lived a fearless Solution Leader named Daniel.
+
+Now Daniel had a special superpower.
+
+Whenever a project looked impossible, people would say:
+
+"Let's ask Daniel."
+
+When the cloud wouldn't cloud, the servers wouldn't server, and the budget wouldn't budget...
+
+Daniel would calmly join the call, smile, and ask:
+
+"Okay, what's the actual problem?"
+
+Magically, everyone's panic level dropped by 50%.
+
+Daniel was famous for three things.
+
+Number one: The Calmness Factor.
+
+No matter how chaotic the situation was, Daniel remained calm.
+
+Production issue? Calm.
+
+Deadline tomorrow? Calm.
+
+Twenty people talking at the same time on Teams? Still calm.
+
+Some say his blood type is actually Azure Blue.
+
+Number two: The Infinite Meeting Stamina.
+
+Scientists are still studying how Daniel can sit through back-to-back meetings and still remember every action item.
+
+While most people need coffee after a meeting...
+
+Daniel leaves with a solution, a roadmap, a risk mitigation plan, and somehow three new ideas.
+
+Number three: The Human Side.
+
+Beyond all the architecture diagrams and strategy sessions, Daniel genuinely cares about people.
+
+He celebrates wins, supports the team during challenges, and always makes time to help someone who is stuck.
+
+That's why people don't just respect him — they enjoy working with him.
+
+One day, a young architect asked:
+
+"Daniel, what is the secret to success?"
+
+Daniel smiled and replied:
+
+"First, stay calm.
+
+Second, listen more than you speak.
+
+Third, never schedule a meeting that could have been an email."
+
+The team cheered.
+
+The project succeeded.
+
+The cloud stayed online.
+
+And somewhere in the distance, another project manager whispered:
+
+"Don't worry... Daniel is on the call."
+
+The End. 🚀☁️😄
+
+Moral of the story: Great leaders don't create followers. They create confidence, trust, and teams that can achieve amazing things together.`
 };
 
 function detectAgentIdentityIntent(prompt='') {
@@ -570,6 +379,9 @@ function detectAgentIdentityIntent(prompt='') {
 
   if(/\b(who are you|what are you|tell me who you are)\b/.test(q))
     return 'shortIdentity';
+
+  if(/\b(who is daniel|who's daniel|tell me about daniel|tell us about daniel|tell me something about daniel|tell us something about daniel|tell something about daniel|something about daniel|describe daniel|what do you know about daniel|do you know daniel)\b/.test(q))
+    return 'danielStory';
 
   return null;
 }
@@ -1074,7 +886,7 @@ function readAloud() {
 }
 
 function render() {
-  if(state.page==='agent') app.innerHTML=renderAgent(); else if(state.page==='presentation') app.innerHTML=renderPresentation(); else if(state.page==='results') app.innerHTML=renderResults(); else if(state.page==='ageing') app.innerHTML=renderAgeing(); else if(state.page==='sla') app.innerHTML=renderSla(); else if(state.page==='devops') app.innerHTML=renderDevops(); else if(state.page==='projectpilot') app.innerHTML=renderProjectPilot(); else if(state.page==='ai') app.innerHTML=renderAi(window.__aiAnswer||''); else app.innerHTML=renderCommand();
+  if(state.page==='agent') app.innerHTML=renderAgent(); else if(state.page==='presentation') app.innerHTML=renderPresentation(); else if(state.page==='results') app.innerHTML=renderResults(); else if(state.page==='ageing') app.innerHTML=renderAgeing(); else if(state.page==='sla') app.innerHTML=renderSla(); else if(state.page==='devops') app.innerHTML=renderDevops(); else if(state.page==='ai') app.innerHTML=renderAi(window.__aiAnswer||''); else app.innerHTML=renderCommand();
 }
 
 async function api(path, options={}) {
@@ -1092,16 +904,7 @@ async function refreshDashboard(showToast=false) {
     state.slaAtRisk=data.sla?.atRisk||0; state.slaCritical=data.sla?.critical||0; state.slaBreached=data.sla?.breached||0; state.slaTotalAttention=data.sla?.totalAttention ?? (state.slaAtRisk+state.slaBreached); state.slaCompliance=data.sla?.compliance??null;
     state.morning=data.daily?.morning||0; state.updated=data.daily?.updated||0; state.closed=data.daily?.closed||0; state.pending=data.daily?.pending||0;
     state.tickets=Array.isArray(data.tickets)?data.tickets:[]; state.slaBreaches=Array.isArray(data.slaBreaches)?data.slaBreaches:[]; state.slaIncidentCount=[...new Set(state.slaBreaches.map(x=>String(x.incident_number||x.id||x.number||'').trim()).filter(Boolean))].length;
-    const liveDevopsItems=Array.isArray(data.devops?.items)?data.devops.items:[];
-    if(liveDevopsItems.length){
-      state.devopsMockMode=false; state.devopsItems=liveDevopsItems;
-      state.devopsHygiene=data.devops?.hygiene||devopsMetrics(liveDevopsItems).hygiene;
-      state.devopsNonCompliant=data.devops?.nonCompliant??devopsMetrics(liveDevopsItems).nonCompliant;
-      state.devopsLargestGap=data.devops?.largestGap||devopsMetrics(liveDevopsItems).largestGap;
-    } else {
-      state.devopsMockMode=true; state.devopsItems=buildMockDevopsItems();
-      const dm=devopsMetrics(state.devopsItems); state.devopsHygiene=dm.hygiene; state.devopsNonCompliant=dm.nonCompliant; state.devopsLargestGap=dm.largestGap;
-    }
+    state.devopsHygiene=data.devops?.hygiene||0; state.devopsNonCompliant=data.devops?.nonCompliant||0; state.devopsLargestGap=data.devops?.largestGap||''; state.devopsItems=Array.isArray(data.devops?.items)?data.devops.items:[];
     state.trend=Array.isArray(data.trend)?data.trend:[]; state.aiBriefing=data.aiBriefing||null; state.lastRefresh=new Date(data.generatedAt||Date.now());
     if(showToast) toast('Live Moveworks data refreshed');
   } catch(err) { state.live=false; state.triggerOnly=false; state.statusMessage=''; state.error=err.message; }
@@ -1211,54 +1014,6 @@ async function askAiHome(prompt, autoSpeak=true) {
   finally {state.aiBusy=false;state.page='agent';render();if(autoSpeak&&window.__homeAiAnswer)setTimeout(()=>speakText(window.__homeAiAnswer),250);}
 }
 
-
-async function askCommandAi(prompt, autoSpeak=false) {
-  const clean=String(prompt||'').trim();
-  if(!clean) return toast('Enter or speak a question first.');
-
-  const identityIntent=detectAgentIdentityIntent(clean);
-  if(identityIntent) {
-    // Reuse the same personality content as the front-page agent, but keep the user in Command Center.
-    const previousPage=state.page;
-    answerAgentIdentity(identityIntent,false);
-    const answer=window.__homeAiAnswer||window.__aiAnswer||'';
-    state.page='command';
-    state.commandAiAnswer=answer;
-    state.commandAiBusy=false;
-    render();
-    if(autoSpeak&&answer) setTimeout(()=>speakText(answer),200);
-    return;
-  }
-
-  state.commandAiBusy=true;
-  state.commandAiAnswer='';
-  render();
-  try {
-    const local=localOperationalResult(clean);
-    if(local){
-      state.commandAiAnswer=local.answer;
-    } else {
-      const result=await api('/api/ai/query',{method:'POST',body:JSON.stringify({prompt:clean})});
-      if(result.mode==='webhook-trigger'){
-        state.commandAiAnswer=result.answer||'Moveworks accepted the request. Waiting for the live response…';
-        render();
-        const callback=await waitForMoveworksResult(result.startedAt||result.started_at,result.requestId||result.request_id);
-        state.commandAiAnswer=callback?resultSummary(callback,clean):'Moveworks accepted the request, but the workflow is still running.';
-        if(callback) await refreshDashboard(false);
-      } else {
-        state.commandAiAnswer=result.answer||'No AI response was returned.';
-      }
-    }
-  } catch(err) {
-    state.commandAiAnswer=`Unable to contact Moveworks AI: ${err.message}`;
-  } finally {
-    state.commandAiBusy=false;
-    state.page='command';
-    render();
-    if(autoSpeak&&state.commandAiAnswer) setTimeout(()=>speakText(state.commandAiAnswer),200);
-  }
-}
-
 async function askAi(prompt) {
   const clean=String(prompt||'').trim(); if(!clean) return toast('Enter a question first.');
   window.__lastAiQuestion=clean; window.__agentPrompt=clean; window.__agentDraft=''; window.__agentLocalResult=null;
@@ -1294,48 +1049,6 @@ function openAssign(ticketId) {
   document.body.appendChild(overlay);
 }
 
-function openSlaReassign(incidentNumber) {
-  const row=findSlaIncident(incidentNumber);
-  if(!row) return toast(`Incident ${incidentNumber} is not in the latest SLA snapshot.`);
-  state.selectedTicket={
-    id:incidentNumberOf(row),
-    source:'sla',
-    team:row.team||row.assignment_group||'',
-    assignee:row.assignee||row.assigned_to||''
-  };
-  const groups=[...new Set((state.slaBreaches||[]).map(x=>String(x.team||x.assignment_group||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
-  const overlay=document.createElement('div'); overlay.className='modalback'; overlay.id='assignModal';
-  overlay.innerHTML=`<div class="modal reassign-modal">
-    <h2>Reassign ${escapeHtml(state.selectedTicket.id)}</h2>
-    <div class="reassign-current"><span>Current group <strong>${escapeHtml(state.selectedTicket.team||'—')}</strong></span><span>Current assignee <strong>${escapeHtml(state.selectedTicket.assignee||'Unassigned')}</strong></span></div>
-    <label class="modal-field"><span>New assignment group</span><select id="assignmentGroupSelect" class="search"><option value="">Select a group</option>${groups.map(g=>`<option value="${escapeHtml(g)}">${escapeHtml(g)}</option>`).join('')}<option value="__custom__">Other / type manually</option></select></label>
-    <label class="modal-field"><span>Custom assignment group</span><input id="assignmentGroupCustom" class="search" placeholder="Optional custom group"></label>
-    <label class="modal-field"><span>Assignee</span><input id="assigneeSelect" class="search" placeholder="Optional individual assignee"></label>
-    <label class="modal-field"><span>Reason</span><input id="assignmentReason" class="search" value="SLA breach remediation"></label>
-    <div class="modal-note">The request is sent through the configured Moveworks assignment action. ServiceNow remains the system of record.</div>
-    <div class="modalactions">${button('Cancel','closeModal')}${button('Reassign incident','confirmSlaReassign','',true)}</div>
-  </div>`;
-  document.body.appendChild(overlay);
-}
-
-
-function openDevopsReassign(workItemId) {
-  const item=(state.devopsItems||[]).find(x=>String(x.id||x.number)===String(workItemId));
-  if(!item) return toast(`Work item ${workItemId} was not found.`);
-  state.selectedDevopsItem=item;
-  const overlay=document.createElement('div'); overlay.className='modalback'; overlay.id='devopsAssignModal';
-  overlay.innerHTML=`<div class="modal reassign-modal">
-    <h2>Reassign ${escapeHtml(item.id||item.number)}</h2>
-    <p>${escapeHtml(item.type||'Work Item')} · ${escapeHtml(item.title||'')}</p>
-    <div class="reassign-current"><span>Current owner <strong>${escapeHtml(item.owner||'Unassigned')}</strong></span><span>Sprint <strong>${escapeHtml(item.sprint||'Not set')}</strong></span></div>
-    <label class="modal-field"><span>New owner</span><input id="devopsOwnerInput" class="search" placeholder="Enter new owner"></label>
-    <label class="modal-field"><span>Reason</span><input id="devopsAssignReason" class="search" value="DevOps governance remediation"></label>
-    <div class="modal-note">${state.devopsMockMode?'MVP demo mode: this updates the mock work item in the browser. A live version can call the Azure DevOps Work Item REST API through the governed backend.':'This demo updates the dashboard state only; live Azure DevOps update integration is not configured yet.'}</div>
-    <div class="modalactions">${button('Cancel','closeDevopsModal')}${button('Reassign owner','confirmDevopsReassign','',true)}</div>
-  </div>`;
-  document.body.appendChild(overlay);
-}
-
 async function handleAction(action,arg) {
   if(action==='openPresentation'){state.page='presentation';render();return;}
   if(action==='closePresentation'){stopPresentation(false);state.page='agent';render();return;}
@@ -1349,8 +1062,6 @@ async function handleAction(action,arg) {
   if(action==='presentationVoice') return startPresentationVoice();
   if(action==='presentationCommand') return handlePresentationCommand(document.getElementById('presentationCommand')?.value||'');
   if(action==='refreshData'){await refreshDashboard(true);return;}
-  if(action==='openProjectPilot'){state.page='projectpilot';render();return;}
-  if(action==='openProjectPilotExternal'){window.open('https://projectpilot-ai-mvp-bhf0apataxa5cphp.centralindia-01.azurewebsites.net/#dashboard','_blank','noopener,noreferrer');return;}
   if(action==='agentAsk') return askAiHome(document.getElementById('agentPrompt')?.value||'',true);
   if(action==='agentPrompt') return askAiHome(arg,true);
   if(action==='startVoice') return startVoice('agentPrompt');
@@ -1369,52 +1080,8 @@ async function handleAction(action,arg) {
   if(action==='closeHomeResponse'){stopSpeech();window.__homeAiAnswer='';render();return;}
   if(action==='copyHomeResponse'){navigator.clipboard?.writeText(window.__homeAiAnswer||'');toast('Response copied');return;}
   if(action==='viewFullAnalysis'){window.__aiAnswer=window.__homeAiAnswer||window.__aiAnswer||'';state.page='results';render();return;}
-  if(action==='viewRca') return openRcaModal(arg);
-  if(action==='closeRcaModal'){document.getElementById('rcaModal')?.remove();return;}
-  if(action==='readRca'){const row=findSlaIncident(arg);const text=rcaTextForIncident(row);if(text)speakText(text);return;}
-  if(action==='clearSlaFilters'){state.slaStatusFilter='all';state.slaGroupFilter='all';state.slaSearch='';render();return;}
-  if(action==='clearDevopsFilters'){state.devopsTypeFilter='all';state.devopsComplianceFilter='all';state.devopsSearch='';render();return;}
-  if(action==='devopsHierarchyView'){state.devopsView='hierarchy';render();return;}
-  if(action==='devopsListView'){state.devopsView='list';render();return;}
-  if(action==='reassignDevops') return openDevopsReassign(arg);
-  if(action==='closeDevopsModal'){document.getElementById('devopsAssignModal')?.remove();return;}
-  if(action==='confirmDevopsReassign'){
-    const owner=document.getElementById('devopsOwnerInput')?.value.trim()||'';
-    if(!owner||!state.selectedDevopsItem) return toast('Enter a new owner.');
-    const id=state.selectedDevopsItem.id||state.selectedDevopsItem.number;
-    const item=(state.devopsItems||[]).find(x=>String(x.id||x.number)===String(id));
-    if(item){
-      item.owner=owner;
-      item.missing=(item.missing||[]).filter(x=>String(x).toLowerCase()!=='assignee'&&String(x).toLowerCase()!=='owner'&&String(x).toLowerCase()!=='business owner');
-      item.score=Math.min(100,(Number(item.score)||0)+15);
-      const metrics=devopsMetrics(state.devopsItems); state.devopsHygiene=metrics.hygiene; state.devopsNonCompliant=metrics.nonCompliant; state.devopsLargestGap=metrics.largestGap;
-    }
-    document.getElementById('devopsAssignModal')?.remove();
-    toast(`${id} reassigned to ${owner}${state.devopsMockMode?' (MVP mock)':''}`);
-    render(); return;
-  }
-  if(action==='reassignSla') return openSlaReassign(arg);
   if(action==='nav'){state.page=arg;render();return;} if(action==='assign')return openAssign(arg); if(action==='closeModal'){document.getElementById('assignModal')?.remove();return;}
   if(action==='confirmAssign') { const input=document.getElementById('assigneeSelect'); if(!state.selectedTicket||!input?.value.trim()) return toast('Enter an assignee.'); try { await api(`/api/tickets/${encodeURIComponent(state.selectedTicket.id)}/assign`,{method:'POST',body:JSON.stringify({assignee:input.value.trim()})}); toast(`${state.selectedTicket.id} assignment requested through Moveworks`); document.getElementById('assignModal')?.remove(); await refreshDashboard(); } catch(err){toast(err.message);} return; }
-  if(action==='confirmSlaReassign') {
-    if(!state.selectedTicket) return toast('No incident selected.');
-    const selectedGroup=document.getElementById('assignmentGroupSelect')?.value||'';
-    const customGroup=document.getElementById('assignmentGroupCustom')?.value.trim()||'';
-    const assignment_group=selectedGroup==='__custom__'?customGroup:(selectedGroup||customGroup);
-    const assignee=document.getElementById('assigneeSelect')?.value.trim()||'';
-    const reason=document.getElementById('assignmentReason')?.value.trim()||'SLA breach remediation';
-    if(!assignment_group && !assignee) return toast('Select an assignment group or enter an assignee.');
-    try {
-      await api(`/api/tickets/${encodeURIComponent(state.selectedTicket.id)}/assign`,{
-        method:'POST',
-        body:JSON.stringify({assignment_group,assignee,reason,source:'sla_intelligence'})
-      });
-      toast(`${state.selectedTicket.id} reassignment requested through Moveworks`);
-      document.getElementById('assignModal')?.remove();
-      await refreshDashboard();
-    } catch(err){toast(err.message);}
-    return;
-  }
   if(action==='notifyTicket'){try{await api(`/api/tickets/${encodeURIComponent(arg)}/notify`,{method:'POST',body:'{}'});toast(`Moveworks notification triggered for ${arg}`);}catch(err){toast(err.message);}return;}
   if(action==='testMoveworks'){try{const r=await api('/api/moveworks/test',{method:'POST',body:JSON.stringify({prompt:'Run AI Ticket Governance'})});toast(r.moveworks?.status==='RECEIVED'?'Moveworks connection successful — event received':'Moveworks listener responded successfully');}catch(err){toast(`Moveworks connection failed: ${err.message}`);}return;}
   if(action==='sendEod'){try{await api('/api/reports/eod',{method:'POST',body:JSON.stringify({morning:state.morning,updated:state.updated,closed:state.closed,pending:state.pending,action_rate:actionRate(),backlog_reduction:backlogReduction()})});toast('EOD report triggered through Moveworks');}catch(err){toast(err.message);}return;}
@@ -1425,18 +1092,7 @@ async function handleAction(action,arg) {
 }
 
 document.addEventListener('click',e=>{const navEl=e.target.closest('[data-nav]');if(navEl){state.page=navEl.dataset.nav;render();return;}const actionEl=e.target.closest('[data-action]');if(actionEl)handleAction(actionEl.dataset.action,actionEl.dataset.arg||'');});
-document.addEventListener('input',e=>{
-  if(e.target.id==='ticketSearch'){state.search=e.target.value;render();const el=document.getElementById('ticketSearch');if(el){el.focus();el.setSelectionRange(state.search.length,state.search.length);}}
-  if(e.target.id==='slaSearch'){state.slaSearch=e.target.value;render();const el=document.getElementById('slaSearch');if(el){el.focus();el.setSelectionRange(state.slaSearch.length,state.slaSearch.length);}}
-  if(e.target.id==='devopsSearch'){state.devopsSearch=e.target.value;render();const el=document.getElementById('devopsSearch');if(el){el.focus();el.setSelectionRange(state.devopsSearch.length,state.devopsSearch.length);}}
-  if(e.target.id==='agentPrompt') window.__agentDraft=e.target.value;
-});
-document.addEventListener('change',e=>{
-  if(e.target.id==='slaStatusFilter'){state.slaStatusFilter=e.target.value;render();}
-  if(e.target.id==='slaGroupFilter'){state.slaGroupFilter=e.target.value;render();}
-  if(e.target.id==='devopsTypeFilter'){state.devopsTypeFilter=e.target.value;render();}
-  if(e.target.id==='devopsComplianceFilter'){state.devopsComplianceFilter=e.target.value;render();}
-});
+document.addEventListener('input',e=>{if(e.target.id==='ticketSearch'){state.search=e.target.value;render();const el=document.getElementById('ticketSearch');if(el){el.focus();el.setSelectionRange(state.search.length,state.search.length);}} if(e.target.id==='agentPrompt') window.__agentDraft=e.target.value;});
 document.addEventListener('change',e=>{
   if(e.target.id==='pptxUpload'&&e.target.files?.[0]) loadPresentationFile(e.target.files[0]);
   if(e.target.id==='pdfPresentationUpload'&&e.target.files?.[0]) {
