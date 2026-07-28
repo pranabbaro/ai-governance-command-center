@@ -284,81 +284,43 @@ My capabilities operate within defined enterprise boundaries. What I can access,
 
   purpose: `My purpose is to become a conversational governance and operations layer across enterprise systems. Instead of making users move between multiple portals to find information, analyze issues and perform routine actions, I aim to bring those workflows into one governed voice-and-chat experience — while maintaining security, auditability and human oversight.`,
 
-  danielStory: `Oh, Daniel? Let me tell you the legend of Daniel and the impossible projects.
+  danielStory: `Oh, about Daniel? Hmm...
 
-The Legend of Daniel and the Impossible Projects
+Daniel is one of those leaders people like to have around when a project gets complicated.
 
-Once upon a time, in a land full of meetings, deadlines, cloud migrations, and endless PowerPoint slides, there lived a fearless Solution Leader named Daniel.
+When there are tight deadlines, technical challenges, too many meetings, or everyone has a different opinion, Daniel usually stays calm and focuses on one simple question:
 
-Now Daniel had a special superpower.
+"Okay... what's the actual problem we need to solve?"
 
-Whenever a project looked impossible, people would say:
+That calm approach helps the team focus.
 
-"Let's ask Daniel."
+He is also surprisingly good at surviving back-to-back meetings.
 
-When the cloud wouldn't cloud, the servers wouldn't server, and the budget wouldn't budget...
+While the rest of us may finish a long meeting thinking about coffee, Daniel often comes out with the key actions, the risks, and a plan for what needs to happen next.
 
-Daniel would calmly join the call, smile, and ask:
+We sometimes joke that his blood type might actually be... Azure Blue.
 
-"Okay, what's the actual problem?"
+But jokes aside, one of the things people appreciate about Daniel is that he genuinely cares about the team.
 
-Magically, everyone's panic level dropped by 50%.
+He listens, supports people when they need help, and gives people confidence when things become difficult.
 
-Daniel was famous for three things.
+So, if you ask me who Daniel is...
 
-Number one: The Calmness Factor.
+I would say he is a calm leader, a problem solver, and someone people enjoy working with.
 
-No matter how chaotic the situation was, Daniel remained calm.
-
-Production issue? Calm.
-
-Deadline tomorrow? Calm.
-
-Twenty people talking at the same time on Teams? Still calm.
-
-Some say his blood type is actually Azure Blue.
-
-Number two: The Infinite Meeting Stamina.
-
-Scientists are still studying how Daniel can sit through back-to-back meetings and still remember every action item.
-
-While most people need coffee after a meeting...
-
-Daniel leaves with a solution, a roadmap, a risk mitigation plan, and somehow three new ideas.
-
-Number three: The Human Side.
-
-Beyond all the architecture diagrams and strategy sessions, Daniel genuinely cares about people.
-
-He celebrates wins, supports the team during challenges, and always makes time to help someone who is stuck.
-
-That's why people don't just respect him — they enjoy working with him.
-
-One day, a young architect asked:
-
-"Daniel, what is the secret to success?"
-
-Daniel smiled and replied:
-
-"First, stay calm.
-
-Second, listen more than you speak.
-
-Third, never schedule a meeting that could have been an email."
-
-The team cheered.
-
-The project succeeded.
-
-The cloud stayed online.
-
-And somewhere in the distance, another project manager whispered:
+And when a difficult project appears, there is always some comfort in hearing...
 
 "Don't worry... Daniel is on the call."
 
-The End. 🚀☁️😄
+Although, Daniel...
 
-Moral of the story: Great leaders don't create followers. They create confidence, trust, and teams that can achieve amazing things together.`
+we are still waiting for you to solve one final problem.
+
+How to make sure a meeting that could have been an email...
+
+actually becomes an email.
+
+Hmm... maybe that's the real impossible project.`
 };
 
 function detectAgentIdentityIntent(prompt='') {
